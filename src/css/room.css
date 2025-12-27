@@ -1,0 +1,320 @@
+/* src/css/room.css - 完整版 */
+
+/* ================== 1. 房间容器基础 ================== */
+
+/* 外层容器：负责居中和背景 */
+.room-container {
+    width: 100vw;
+    height: 100vh;
+    background: #2b2b2b; /* 深色背景，作为屏幕边缘填充 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden; /* 禁止出现滚动条 */
+    position: relative;
+}
+
+/* 核心房间区域 (画布) */
+.iso-room {
+    position: relative;
+    /* 房间尺寸放大 3 倍 (320x240 -> 960x720) */
+    width: 960px; 
+    height: 720px; 
+    margin: auto;
+}
+
+/* 房间背景图 */
+.room-background {
+    width: 100%;
+    height: 100%;
+    /* 像素化渲染，保证放大后清晰不模糊 */
+    image-rendering: pixelated; 
+    image-rendering: -moz-crisp-edges;
+    object-fit: contain;
+    z-index: 0; /* 最底层 */
+    transition: filter 1s ease-in-out; /* 夜间模式过渡动画 */
+}
+
+/* 夜间模式滤镜 */
+.room-background.night-mode {
+    filter: brightness(0.5) contrast(1.1) grayscale(0.2) hue-rotate(-10deg);
+}
+
+
+/* ================== 2. 交互热区 & 家具 ================== */
+
+/* (旧) 透明热区通用样式 - 兼容保留 */
+.hotspot {
+    position: absolute;
+    cursor: pointer;
+    z-index: 50;
+    background: transparent; 
+    border: none;
+    transition: background 0.2s;
+}
+.hotspot:hover {
+    background: rgba(255, 255, 255, 0.1); 
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+/* 1. 家具基础样式 (常态) */
+.pixel-furniture {
+    position: absolute;
+    cursor: pointer;
+    image-rendering: pixelated; 
+    filter: drop-shadow(5px 5px 5px rgba(0,0,0,0.5));
+    transition: transform 0.2s, filter 0.2s;
+    transform-origin: bottom center;
+
+    /* ✨ 必须加上这两行！否则静止时无法读取旋转方向 */
+    --dir: 1; 
+    transform: scaleX(var(--dir)); 
+}
+
+/* 2. 悬浮样式 (Hover) */
+.pixel-furniture:hover {
+    /* ✨ 必须保留 var(--dir)，否则悬浮时会瞬间转回去 */
+    /* 同时加上 !important 确保它浮在最上层 */
+    transform: scaleX(var(--dir)) scale(1.05) translateY(-5px);
+    z-index: 9999 !important; 
+    
+    filter: drop-shadow(0 10px 10px rgba(0,0,0,0.3));
+}
+
+
+/* ================== 3. HUD (界面元素) ================== */
+
+/* 左上角状态栏 (墨水/日期) */
+.room-hud {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 20;
+}
+
+/* 右上角工具栏 */
+.top-right-toolbar {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 12px;
+    z-index: 20;
+}
+
+/* 图标按钮样式 */
+.icon-btn {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 6px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    color: #333;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.icon-btn svg {
+    width: 20px; height: 20px; stroke-width: 2px;
+}
+.icon-btn:hover {
+    background: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.icon-btn:active {
+    transform: translateY(0); box-shadow: none;
+}
+
+/* 提示框 (Toast) */
+.toast {
+    position: absolute;
+    bottom: 10%; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    z-index: 100;
+    transition: opacity 0.5s;
+}
+.toast.hidden { opacity: 0; pointer-events: none; }
+
+
+/* ================== 4. 弹窗布局 ================== */
+
+.full-screen-modal {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+}
+.desk-layout {
+    width: 80%; max-width: 900px; height: 80vh;
+    display: flex; flex-direction: column;
+}
+.bookshelf-layout {
+    width: 70%; max-width: 800px; min-height: 50vh;
+}
+
+
+/* ================== 5. 装修模式 (Decoration Mode) ================== */
+
+/* 装修 HUD 容器 (全屏) */
+#decoration-hud {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 150;
+    pointer-events: none; /* 🔴 关键：允许鼠标穿透，点击下方的家具 */
+}
+
+/* 顶部提示 */
+.deco-hint {
+    position: absolute;
+    top: 20px; width: 100%;
+    text-align: center;
+    color: white; font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    pointer-events: auto; /* 恢复点击 */
+}
+
+/* 底部物品栏容器 */
+.inventory-bar-container {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 120px;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-top: 2px solid #5d4037;
+    pointer-events: auto; /* 恢复点击，否则无法拖拽新家具 */
+}
+
+/* 完成按钮 */
+#btn-close-deco {
+    pointer-events: auto; 
+    cursor: pointer;
+}
+
+/* 物品列表 */
+.inventory-list {
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    padding: 10px;
+    max-width: 90%;
+}
+
+/* 物品格子 */
+.inventory-slot {
+    width: 80px; height: 80px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    display: flex; justify-content: center; align-items: center;
+    cursor: grab;
+    border: 1px solid #444;
+    transition: transform 0.2s;
+}
+.inventory-slot:hover {
+    background: rgba(255,255,255,0.2);
+    transform: translateY(-5px);
+}
+.inventory-slot img {
+    max-width: 70%; max-height: 70%;
+    image-rendering: pixelated;
+    pointer-events: none;
+}
+
+
+/* ================== 6. 装修视觉反馈 ================== */
+
+/* 正在装修时的家具样式 */
+.iso-room.decorating .pixel-furniture {
+    cursor: move;
+    border: none;
+    /* 白色光晕提示可移动 */
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.8));
+    transition: filter 0.2s;
+}
+.iso-room.decorating .pixel-furniture:hover {
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1));
+    transform: scale(1.02);
+}
+
+/* 装修网格投影 (符合透视的菱形) */
+.iso-room.decorating::after {
+    content: '';
+    position: absolute;
+    top: 35%; 
+    left: 10%; 
+    width: 80%; height: 65%;
+    pointer-events: none;
+    z-index: 0; /* 在背景之上，家具之下 */
+    
+    /* 绘制等轴网格线 (约 26.5 度) */
+    background-image: 
+        linear-gradient(26.5deg, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+        linear-gradient(-26.5deg, rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+    background-size: 5% 10%; 
+    
+    /* 限制网格只显示在地板区域 */
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    opacity: 0.6;
+}
+
+/* ================== 7. 拖拽与落地光标 ================== */
+
+/* 拖拽中的幻影 (Ghost) */
+.dragging-ghost {
+    position: fixed; 
+    top: 0; left: 0;
+    pointer-events: none; /* 🔴 关键：必须穿透，让鼠标能检测底下的网格 */
+    z-index: 99999 !important; 
+    opacity: 0.8;
+    image-rendering: pixelated;
+    margin: 0; padding: 0;
+    
+    /* 移除 scale 变换，使用 JS 传入的确切宽度，防止尺寸跳变 */
+    transform: none; 
+}
+
+/* 落地光标 (Landing Marker) - 绿色脚印 */
+.landing-marker {
+    position: absolute;
+    /* 1. 把它压扁！高度设死，不要太高，看起来像地砖 */
+    height: 40px !important; 
+    
+    background: rgba(0, 255, 0, 0.3);
+    border: 2px solid #00ff00;
+    
+    /* 2. 核心变换：利用 skew 模拟等轴视角的“躺倒”效果 */
+    /* 配合 scaleY 压扁，使其看起来贴合地板 */
+    transform: skewX(-26.5deg) scaleY(0.6);
+    /* 修正变换原点，确保旋转后位置不飘 */
+    transform-origin: bottom center; 
+    
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    
+    /* 3. 层级要在家具下面，地板上面 */
+    z-index: 10; 
+    
+    pointer-events: none;
+    display: none;
+    transition: background 0.2s, border-color 0.2s, width 0.1s, left 0.1s, top 0.1s;
+}
+
+/* 红色非法状态 */
+.landing-marker.invalid {
+    background: rgba(255, 0, 0, 0.3);
+    border-color: #ff0000;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+}

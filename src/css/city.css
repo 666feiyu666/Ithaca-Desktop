@@ -1,0 +1,82 @@
+/* src/css/city.css */
+
+/* 1. 地图容器：改为允许滚动，并隐藏滚动条 */
+.map-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: #444; /* 加载前的底色，用深色看起来像游戏 */
+    z-index: 50; 
+    
+    /* 【修改点 A】允许内容溢出产生滚动 */
+    overflow: auto; 
+    
+    /* 【修改点 B】布局改为 block，这样图片变大时才能撑开容器 */
+    display: block; 
+    /* 删掉了原来的 display: flex... 因为 Flex 会强制居中导致无法滚动 */
+
+    /* 【修改点 C】隐藏滚动条 (兼容性写法) */
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* 针对 Chrome/Safari/Webkit 隐藏滚动条 */
+.map-container::-webkit-scrollbar {
+    display: none;
+}
+
+/* 2. 地图背景图：改为保持原始分辨率，不压缩 */
+.map-bg {
+    /* 【修改点 D】让图片保持原始像素大小，而不是强行塞满屏幕 */
+    width: auto; 
+    height: auto;
+    
+    /* 保证至少铺满屏幕（防止图片太小时留白） */
+    min-width: 100%;
+    min-height: 100%;
+    
+    /* 【修改点 E】像素化渲染，保证放大后清晰 */
+    image-rendering: pixelated; 
+    image-rendering: -moz-crisp-edges;
+    
+    /* 消除图片底部的微小空隙 */
+    display: block; 
+}
+
+/* 3. 回家按钮样式 (保持不变) */
+.map-back-btn {
+    position: absolute; 
+    /* 注意：如果不希望按钮跟着地图滚走，建议改为 fixed */
+    /* position: fixed; */ 
+    top: 20px;
+    left: 20px;
+    padding: 10px 20px;
+    background: #000000cc;
+    border: 2px solid #5d4037;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    z-index: 100;
+}
+.map-back-btn:hover {
+    background: #fdf5e6;
+}
+
+/* 4. 地图上的热区 */
+.map-node-hotspot {
+    position: absolute;
+    cursor: pointer;
+    z-index: 100;
+    
+    /* 【修改点 F】去掉了红色调试边框，现在是隐形的了 */
+    /* 如果你还想看位置，可以把 background 里的 0 改成 0.3 */
+    background: rgba(255, 0, 0, 0); 
+    border: none;
+}
+
+/* 鼠标放上去有微微的高光反馈 */
+.map-node-hotspot:hover {
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
