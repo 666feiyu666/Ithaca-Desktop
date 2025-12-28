@@ -22,22 +22,13 @@ export const UserData = {
 
         // === 初始化默认房间布局 (初始五件套) ===
         // 只有当完全没有布局记录时才执行（新游戏）
-        if (!Array.isArray(this.state.layout) || this.state.layout.length === 0) {
-            const now = Date.now();
-            this.state.layout = [
-                // 1. 桌子 (中)
-                { uid: now,     itemId: 'item_desk_default',      x: 38, y: 35 }, 
-                // 2. 书架 (右)
-                { uid: now + 1, itemId: 'item_bookshelf_default', x: 65, y: 32 }, 
-                // 3. 地毯 (前)
-                { uid: now + 2, itemId: 'item_rug_default',       x: 45, y: 55 },
-                // 4. 椅子 (桌前) - 44, 42 大概在桌子前方中间
-                { uid: now + 3, itemId: 'item_chair_default',     x: 44, y: 42 },
-                // 5. 床 (左下角) - 15, 35 靠左墙
-                { uid: now + 4, itemId: 'item_bed_default',       x: 15, y: 35 }
-            ];
+        if (!Array.isArray(this.state.layout)) {
+            console.log("检测到新用户/重置状态，发放新手礼包...");
+            
+            // 1. 显式初始化为空房间
+            this.state.layout = []; 
 
-            // 确保这些默认家具的所有权也在背包里
+            // 2. 定义新手五件套
             const starterPack = [
                 'item_desk_default', 
                 'item_bookshelf_default', 
@@ -46,13 +37,14 @@ export const UserData = {
                 'item_bed_default'
             ];
 
+            // 3. 只发到背包，不自动摆放
             starterPack.forEach(id => {
                 if (!this.state.inventory.includes(id)) {
                     this.state.inventory.push(id);
                 }
             });
             
-            // 初始化完毕，保存一次
+            // 保存状态
             this.save();
         }
     },

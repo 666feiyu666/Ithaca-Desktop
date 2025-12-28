@@ -4,6 +4,7 @@ import { Library } from '../data/Library.js';
 import { UserData } from '../data/UserData.js';
 import { Binder } from '../logic/Binder.js';
 import { DragManager } from '../logic/DragManager.js'; 
+import { marked } from '../libs/marked.esm.js';
 
 // 物品数据库
 const ITEM_DB = {
@@ -212,11 +213,16 @@ export const UIRenderer = {
         const dateEl = document.getElementById('reader-date');
         
         document.getElementById('reader-title').innerText = book.title;
-        document.getElementById('reader-text').innerText = book.content;
+        
+        // ✨ 修改这里：使用 marked 解析内容
+        // { breaks: true } 允许回车直接换行
+        const htmlContent = marked.parse(book.content, { breaks: true });
+        document.getElementById('reader-text').innerHTML = htmlContent; // 注意用 innerHTML
+
         if (dateEl) dateEl.innerText = `出版于: ${book.date}`;
 
         document.getElementById('reader-title-input').value = book.title;
-        document.getElementById('reader-content-input').value = book.content;
+        document.getElementById('reader-content-input').value = book.content; // 编辑框里还是保留原文
 
         this.toggleReaderMode(false); 
         modal.style.display = 'flex';
@@ -280,15 +286,23 @@ export const UIRenderer = {
         }
     },
 
-    // --- 9. 渲染房间家具 (按类型定义尺寸) ---
+    // --- 9. 渲染房间家具 (智能排序修复版) ---
     renderRoomFurniture() {
         const container = document.querySelector('.iso-room');
         if (!container) return;
 
+        // 1. 清理旧家具
         const oldItems = container.querySelectorAll('.pixel-furniture');
         oldItems.forEach(el => el.remove());
 
-        UserData.state.layout.forEach(itemData => {
+        if (!UserData.state.layout) return;
+
+        // ✨ 关键修复 A：智能排序
+        // 按照 Y 坐标从小到大排序（远处的先画，近处的后画）
+        // 这样可以确保视觉遮挡关系和点击层级完全一致
+        const sortedLayout = [...UserData.state.layout].sort((a, b) => a.y - b.y);
+
+        sortedLayout.forEach(itemData => {
             const config = ITEM_DB[itemData.itemId];
             if (!config) return; 
 
@@ -299,44 +313,59 @@ export const UIRenderer = {
             
             img.style.left = itemData.x + '%';
             img.style.top = itemData.y + '%';
+            
+            // 设置层级：y坐标越大，层级越高（越靠近屏幕）
+            img.style.zIndex = Math.floor(itemData.y);
 
             const dir = itemData.direction || 1;
-            img.style.setProperty('--dir',dir); 
+            img.style.setProperty('--dir', dir); 
 
-            // === 📐 尺寸控制中心 (按 Type) ===
-            // 这里我们根据 type 来严格分配尺寸
+            // 尺寸定义
             switch (config.type) {
                 case 'desk':      img.style.width = '22%'; break;
                 case 'bookshelf': img.style.width = '12%'; break;
                 case 'rug':       img.style.width = '25%'; break;
-                case 'chair':     img.style.width = '8%';  break; //
-                case 'bed':       img.style.width = '32%'; break; //
-                default:          img.style.width = '15%'; break; // deco 等
+                case 'chair':     img.style.width = '8%';  break;
+                case 'bed':       img.style.width = '32%'; break;
+                default:          img.style.width = '15%'; break;
             }
 
-            img.style.zIndex = Math.floor(itemData.y);
+            // --- 🖱️ 交互事件修复 ---
 
-            // 事件绑定
+            // 1. 拖拽按下
             img.onmousedown = (e) => {
                 if (DragManager.isDecorating) {
+                    e.stopPropagation(); // 防止穿透
                     DragManager.startDragExisting(e, itemData.uid, config.src, itemData.direction || 1);
                 }
             };
 
-            img.onclick = () => {
-                if (DragManager.isDecorating) return;
+            // 新增一个内部私有方法，用于关闭所有弹窗
+            this._closeAllModals = () => {
+                const modals = document.querySelectorAll('.modal-overlay');
+                modals.forEach(m => m.style.display = 'none');
+            };
+
+            // 修改家具点击事件
+            img.onclick = (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
+
+                if (DragManager.isDecorating) return; // 装修模式下不触发功能
+
+                // ✨ 关键修复：打开新弹窗前，先关掉所有正在显示的弹窗
+                this._closeAllModals(); 
 
                 if (config.type === 'desk') {
                     document.getElementById('modal-desk').style.display = 'flex';
                     this.renderJournalList();
                 } else if (config.type === 'bookshelf') {
                     document.getElementById('modal-bookshelf-ui').style.display = 'flex';
-                    this.renderBookshelf();
+                    if (this.renderBookshelf) this.renderBookshelf();
                 } else if (config.type === 'rug') {
                     this.toggleMap(true);
                 }
-                // 床和椅子的点击事件暂留空，以后可加“睡觉”或“坐下”
             };
+            
             container.appendChild(img);
         });
     },

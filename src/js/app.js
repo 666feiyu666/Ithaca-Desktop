@@ -4,12 +4,14 @@
 import { Journal } from './data/Journal.js';
 import { UserData } from './data/UserData.js';
 import { Library } from './data/Library.js';
+import { IntroScene } from './logic/IntroScene.js';
 import { Binder } from './logic/Binder.js';
 import { CityEvent } from './logic/CityEvent.js';
 import { Shop } from './logic/Shop.js';
 import { DragManager } from './logic/DragManager.js';   
 import { TimeSystem } from './logic/TimeSystem.js';
 import { UIRenderer } from './ui/UIRenderer.js';
+import { marked } from './libs/marked.esm.js';  
 
 // 2. 程序入口：初始化所有数据和界面
 async function init() {
@@ -33,6 +35,8 @@ async function init() {
     DragManager.init(); // 初始化拖拽系统
     UIRenderer.renderRoomFurniture(); // 初始渲染一次房间家具
     
+    IntroScene.init(); // 播放开场剧情
+
     bindEvents();
     UIRenderer.log("欢迎回家。");
 }
@@ -174,10 +178,14 @@ function bindEvents() {
     }
 
     // B2. 关闭工作台
-    document.getElementById('btn-close-workbench').onclick = () => {
-        workbenchModal.style.display = 'none';
-    };
-
+    const btnCloseWorkbench = document.getElementById('btn-close-workbench'); // 最好先获取一下防止报错
+    if (btnCloseWorkbench) {
+        btnCloseWorkbench.onclick = () => {
+            // ❌ 错误写法: workbenchModal.style.display = 'none';
+            // ✅ 正确写法: 重新获取元素
+            document.getElementById('workbench-modal').style.display = 'none';
+        };
+    }
     // B3. 书稿手动编辑同步
     document.getElementById('manuscript-editor').addEventListener('input', (e) => {
         Binder.updateManuscript(e.target.value);
@@ -492,6 +500,61 @@ function bindEvents() {
                 // 5. 刷新页面
                 window.location.reload();
             }
+        };
+    }
+
+    // --- G. Markdown 预览功能 ---
+
+    // 通用切换函数：传入 输入框ID、预览框ID、按钮ID
+    const togglePreview = (editorId, previewId, btnId) => {
+        const editor = document.getElementById(editorId);
+        const preview = document.getElementById(previewId);
+        const btn = document.getElementById(btnId);
+
+        if (!editor || !preview || !btn) return;
+
+        // 当前如果是隐藏的，说明要开启预览
+        if (preview.style.display === 'none') {
+            // 1. 获取 Markdown 文本
+            const rawText = editor.value;
+            // 2. 转换为 HTML (处理换行符)
+            // marked 默认不把单个换行当换行，我们可以配置一下，或者简单替换
+            // 这里直接用默认 parser
+            const htmlContent = marked.parse(rawText, { breaks: true }); 
+            
+            // 3. 填充并显示
+            preview.innerHTML = htmlContent;
+            preview.style.display = 'block'; // 显示预览层
+            // editor.style.display = 'none'; // 可选：隐藏输入框，或者让预览层覆盖在上面
+            
+            btn.innerText = "✏️ 继续编辑";
+            btn.style.background = "#333";
+        } else {
+            // 切回编辑模式
+            preview.style.display = 'none';
+            // editor.style.display = 'block'; 
+            
+            btn.innerText = "👁️ 预览";
+            btn.style.background = "#666";
+            
+            // 自动聚焦回输入框
+            editor.focus();
+        }
+    };
+
+    // 1. 日记预览按钮
+    const btnJournalPreview = document.getElementById('btn-toggle-journal-preview');
+    if (btnJournalPreview) {
+        btnJournalPreview.onclick = () => {
+            togglePreview('editor-area', 'editor-preview', 'btn-toggle-journal-preview');
+        };
+    }
+
+    // 2. 书稿预览按钮
+    const btnManuscriptPreview = document.getElementById('btn-toggle-manuscript-preview');
+    if (btnManuscriptPreview) {
+        btnManuscriptPreview.onclick = () => {
+            togglePreview('manuscript-editor', 'manuscript-preview', 'btn-toggle-manuscript-preview');
         };
     }
 }

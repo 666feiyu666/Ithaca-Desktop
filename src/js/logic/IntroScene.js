@@ -1,0 +1,111 @@
+/* src/js/logic/IntroScene.js */
+import { UserData } from '../data/UserData.js';
+import { UIRenderer } from '../ui/UIRenderer.js';
+import { DragManager } from './DragManager.js'; // 引入拖拽管理器，用于自动开启装修模式
+
+export const IntroScene = {
+    // 🎭 更新后的剧本：毕业生租房篇
+    script: [
+        { speaker: "我", text: "（拖着行李箱的声音）呼……终于到了。" },
+        { speaker: "我", text: "看着手机上的导航，应该就是这里没错了。" },
+        { speaker: "我", text: "刚毕业也没什么积蓄，能在寸土寸金的城市里找到这个租金合适的单间，已经很幸运了。" },
+        { speaker: "我", text: "虽然房东在电话里说房子是空的，什么都没有……" },
+        { speaker: "我", text: "但只要用心布置一下，这里就是我在这个陌生城市的第一个家了。" },
+    ],
+    
+    currentIndex: 0,
+    isTyping: false,
+    timer: null,
+
+    init() {
+        const scene = document.getElementById('scene-intro');
+        const box = document.getElementById('intro-dialogue-box');
+        const btnSkip = document.getElementById('btn-skip-intro');
+
+        // 1. 如果是老玩家，直接跳过
+        if (UserData.state.hasWatchedIntro) {
+            scene.style.display = 'none';
+            return;
+        }
+
+        // 2. 绑定点击事件
+        box.onclick = () => this.next();
+        btnSkip.onclick = () => this.endIntro();
+
+        // 3. 开始播放
+        console.log("🎬 开场剧情开始：毕业生篇");
+        this.renderLine();
+    },
+
+    next() {
+        if (this.isTyping) {
+            this.finishTyping();
+            return;
+        }
+        this.currentIndex++;
+        if (this.currentIndex >= this.script.length) {
+            this.endIntro();
+        } else {
+            this.renderLine();
+        }
+    },
+
+    renderLine() {
+        const line = this.script[this.currentIndex];
+        document.getElementById('dialogue-speaker').innerText = line.speaker;
+        const textEl = document.getElementById('dialogue-text');
+        textEl.innerText = ""; 
+        
+        this.isTyping = true;
+        let charIndex = 0;
+        if (this.timer) clearInterval(this.timer);
+
+        this.timer = setInterval(() => {
+            if (charIndex < line.text.length) {
+                textEl.innerText += line.text[charIndex];
+                charIndex++;
+            } else {
+                this.finishTyping();
+            }
+        }, 50);
+    },
+
+    finishTyping() {
+        clearInterval(this.timer);
+        this.isTyping = false;
+        document.getElementById('dialogue-text').innerText = this.script[this.currentIndex].text;
+    },
+
+    // 🎬 剧情结束 -> 引导开始
+    endIntro() {
+        const scene = document.getElementById('scene-intro');
+        
+        // 1. 淡出动画
+        scene.style.transition = "opacity 1.5s";
+        scene.style.opacity = 0;
+        
+        setTimeout(() => {
+            scene.style.display = 'none';
+            
+            // 2. 记录状态
+            UserData.state.hasWatchedIntro = true;
+            UserData.save();
+
+            // === ✨ 核心引导逻辑 ===
+            
+            // A. 在日志里给一句氛围感的话
+            UIRenderer.log("推开门，屋里空荡荡的，只有午后的阳光洒在地板上。");
+
+            // B. 延迟一点点，自动打开【装修模式】
+            setTimeout(() => {
+                // 强制打开装修模式 (调用 DragManager)
+                DragManager.toggleMode(true);
+                
+                // C. 弹出一个强提示 (既然是新手引导，用 alert 最显眼，或者你可以之后做一个漂亮的提示框)
+                alert("📦 【新手引导】\n\n你看，房间现在是空的。\n\n我已经帮你把行李放在屏幕下方的【物品栏】里了。\n\n试着把它们拖拽到房间里吧！");
+                
+            }, 500);
+
+        }, 1500);
+    }
+};
