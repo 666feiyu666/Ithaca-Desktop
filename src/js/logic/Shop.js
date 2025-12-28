@@ -11,21 +11,21 @@ export const Shop = {
             name: '沙发', 
             price: 50, 
             desc: '开躺！',
-            img: 'assets/images/sofa.png' 
+            img: 'assets/images/room/sofa.png' 
         },
         { 
             id: 'item_rug_blue', 
             name: '波斯地毯', 
             price: 120, 
             desc: '踩上去软软的，很舒服。',
-            img: 'assets/images/rug2.png' 
+            img: 'assets/images/room/rug2.png' 
         },
         { 
             id: 'item_cat_orange', 
             name: '橘猫', 
             price: 500, 
             desc: '它吃得很多，但很可爱。',
-            img: 'assets/images/cat.png' // 以后换猫图
+            img: 'assets/images/room/cat.png' // 以后换猫图
         }
     ],
 

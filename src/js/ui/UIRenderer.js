@@ -9,16 +9,16 @@ import { marked } from '../libs/marked.esm.js';
 // 物品数据库
 const ITEM_DB = {
     // === 初始五件套 (独立类型，独立尺寸) ===
-    'item_desk_default':      { src: 'assets/images/desktop.png',   type: 'desk' },
-    'item_bookshelf_default': { src: 'assets/images/bookshelf.png', type: 'bookshelf' },
-    'item_rug_default':       { src: 'assets/images/rug1.png',      type: 'rug' },
-    'item_chair_default':     { src: 'assets/images/chair.png',     type: 'chair' }, 
-    'item_bed_default':       { src: 'assets/images/bed.png',       type: 'bed' },   
+    'item_desk_default':      { src: 'assets/images/room/desktop.png',   type: 'desk' },
+    'item_bookshelf_default': { src: 'assets/images/room/bookshelf.png', type: 'bookshelf' },
+    'item_rug_default':       { src: 'assets/images/room/rug1.png',      type: 'rug' },
+    'item_chair_default':     { src: 'assets/images/room/chair.png',     type: 'chair' }, 
+    'item_bed_default':       { src: 'assets/images/room/bed.png',       type: 'bed' },   
 
     // === 商店/其他物品 (统称 deco) ===
-    'item_plant_01':          { src: 'assets/images/sofa.png',      type: 'deco' },
-    'item_rug_blue':          { src: 'assets/images/rug2.png',      type: 'deco' },
-    'item_cat_orange':        { src: 'assets/images/cat.png',       type: 'deco' }
+    'item_plant_01':          { src: 'assets/images/room/sofa.png',      type: 'deco' },
+    'item_rug_blue':          { src: 'assets/images/room/rug2.png',      type: 'deco' },
+    'item_cat_orange':        { src: 'assets/images/room/cat.png',       type: 'deco' }
 };
 
 export const UIRenderer = {
@@ -184,7 +184,7 @@ export const UIRenderer = {
             // 2. 创建封面图片
             const img = document.createElement('img');
             // 兼容旧存档：如果没有 cover 字段，默认用第一张
-            img.src = book.cover || 'assets/images/booksheet1.png';
+            img.src = book.cover || 'assets/images/booksheet/booksheet1.png';
             img.className = 'book-cover-img';
             
             // 3. 创建标题文字

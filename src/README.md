@@ -2,7 +2,7 @@
 
 > *"When you set out for Ithaca, pray that your road is a long one, full of adventure, full of discovery."* — C.P. Cavafy
 
-![Ithaca Room](assets/images/room_goal.png)
+![Ithaca Room](assets/images/room/room_goal.png)
 
 ## 📖 简介 (Introduction)
 

@@ -131,7 +131,7 @@ function bindEvents() {
     // 1. 监听封皮选择点击
     const coverOptions = document.querySelectorAll('.cover-option');
     // 暂存当前选中的封皮，默认为第一张
-    let selectedCover = 'assets/images/booksheet1.png';
+    let selectedCover = 'assets/images/booksheet/booksheet1.png';
 
     coverOptions.forEach(img => {
         img.onclick = () => {
@@ -141,7 +141,7 @@ function bindEvents() {
             img.classList.add('selected');
             // 更新变量 (注意：这里需要完整的路径，或者你只存文件名然后在 Binder 里拼路径)
             // 这里我们简单处理，假设 data-cover 里存的是文件名
-            selectedCover = 'assets/images/' + img.getAttribute('data-cover');
+            selectedCover = 'assets/images/booksheet' + img.getAttribute('data-cover');
         };
     });
 

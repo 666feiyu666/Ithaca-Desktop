@@ -29,7 +29,7 @@ export const Binder = {
             content: this.currentManuscript,
             date: new Date().toLocaleDateString(),
             // ✨ 保存封面图片路径，默认给一个
-            cover: coverImg || 'assets/images/booksheet1.png' 
+            cover: coverImg || 'assets/images/booksheet/booksheet1.png' 
         };
 
         Library.addBook(newBook);

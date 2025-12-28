@@ -57,7 +57,7 @@
     width: 100%; height: 100%;
     
     /* 引用你的红色背景图 (假设你放到了 assets/images 文件夹) */
-    background-image: url('../assets/images/textbox_light_red.png'); 
+    background-image: url('../assets/images/city/textbox_light_red.png'); 
     background-size: 100% 100%;
     background-repeat: no-repeat;
     
