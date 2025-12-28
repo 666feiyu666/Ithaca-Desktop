@@ -174,9 +174,18 @@
 
             <div class="workbench-main">
                 <h3>2. 编辑书稿 (Manuscript)</h3>
-                
+
                 <input type="text" id="manuscript-title-input" placeholder="请输入书名..." 
-                       style="width: 100%; padding: 10px; font-size: 16px; font-weight: bold; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    style="width: 100%; padding: 10px; font-size: 16px; font-weight: bold; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;">
+
+                <div class="cover-selection-area">
+                    <label style="font-size: 14px; color: #666; display: block; margin-bottom: 8px;">选择封皮：</label>
+                    <div class="cover-options" id="cover-options-container">
+                        <img src="assets/images/booksheet1.png" class="cover-option selected" data-cover="booksheet1.png">
+                        <img src="assets/images/booksheet2.png" class="cover-option" data-cover="booksheet2.png">
+                        <img src="assets/images/booksheet3.png" class="cover-option" data-cover="booksheet3.png">
+                    </div>
+                </div>
 
                 <textarea id="manuscript-editor" placeholder="在这里拼贴、润色你的书稿..."></textarea>
                 

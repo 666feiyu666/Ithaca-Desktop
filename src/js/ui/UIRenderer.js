@@ -5,16 +5,18 @@ import { UserData } from '../data/UserData.js';
 import { Binder } from '../logic/Binder.js';
 import { DragManager } from '../logic/DragManager.js'; 
 
-// 物品数据库：定义物品ID对应的图片和功能类型
+// 物品数据库
 const ITEM_DB = {
-    // 基础家具
+    // === 初始五件套 (独立类型，独立尺寸) ===
     'item_desk_default':      { src: 'assets/images/desktop.png',   type: 'desk' },
     'item_bookshelf_default': { src: 'assets/images/bookshelf.png', type: 'bookshelf' },
     'item_rug_default':       { src: 'assets/images/rug1.png',      type: 'rug' },
-    
-    // 商店物品
+    'item_chair_default':     { src: 'assets/images/chair.png',     type: 'chair' }, 
+    'item_bed_default':       { src: 'assets/images/bed.png',       type: 'bed' },   
+
+    // === 商店/其他物品 (统称 deco) ===
     'item_plant_01':          { src: 'assets/images/sofa.png',      type: 'deco' },
-    'item_rug_blue':          { src: 'assets/images/rug2.png',      type: 'rug' }, // 这里的 type 改为 rug 以便能传送
+    'item_rug_blue':          { src: 'assets/images/rug2.png',      type: 'deco' },
     'item_cat_orange':        { src: 'assets/images/cat.png',       type: 'deco' }
 };
 
@@ -164,7 +166,7 @@ export const UIRenderer = {
         });
     },
 
-    // --- 5. 渲染书架 (Library) ---
+    // --- 5. 渲染书架 (Library) [重写] ---
     renderBookshelf() {
         const container = document.getElementById('bookshelf');
         if (!container) return;
@@ -173,27 +175,34 @@ export const UIRenderer = {
         const books = Library.getAll();
         
         books.forEach(book => {
-            const div = document.createElement('div');
-            div.className = 'book-item';
-            div.title = `${book.title}\n出版日期: ${book.date}`;
+            // 1. 创建容器
+            const wrapper = document.createElement('div');
+            wrapper.className = 'book-item-container';
+            wrapper.title = `${book.title}\n出版日期: ${book.date}`;
+
+            // 2. 创建封面图片
+            const img = document.createElement('img');
+            // 兼容旧存档：如果没有 cover 字段，默认用第一张
+            img.src = book.cover || 'assets/images/booksheet1.png';
+            img.className = 'book-cover-img';
             
-            div.style.backgroundColor = book.color || '#5d4037'; 
-            div.style.width = '24px';
-            div.style.height = '70px';
-            div.style.marginRight = '5px';
-            div.style.cursor = 'pointer';
-            div.style.borderRadius = '2px';
-            div.style.boxShadow = '1px 1px 3px rgba(0,0,0,0.3)';
-            div.style.transition = 'transform 0.2s';
+            // 3. 创建标题文字
+            const titleSpan = document.createElement('div');
+            titleSpan.className = 'book-title-text';
+            titleSpan.innerText = book.title;
 
-            div.onmouseover = () => { div.style.transform = 'translateY(-5px)'; };
-            div.onmouseout = () => { div.style.transform = 'translateY(0)'; };
+            // 4. 组装
+            wrapper.appendChild(img);
+            wrapper.appendChild(titleSpan);
 
-            div.onclick = () => {
+            // 5. 点击事件
+            wrapper.onclick = () => {
                 this.openBook(book);
             };
             
-            container.appendChild(div);
+            // 6. 悬浮动效 (CSS已处理，JS只需负责点击)
+            
+            container.appendChild(wrapper);
         });
     },
 
@@ -271,16 +280,14 @@ export const UIRenderer = {
         }
     },
 
-    // --- 9. 渲染房间里的家具 ---
+    // --- 9. 渲染房间家具 (按类型定义尺寸) ---
     renderRoomFurniture() {
         const container = document.querySelector('.iso-room');
         if (!container) return;
 
-        // 1. 清理旧的家具元素 (保留背景图 .room-background)
         const oldItems = container.querySelectorAll('.pixel-furniture');
         oldItems.forEach(el => el.remove());
 
-        // 2. 遍历布局数据生成新的家具
         UserData.state.layout.forEach(itemData => {
             const config = ITEM_DB[itemData.itemId];
             if (!config) return; 
@@ -290,54 +297,32 @@ export const UIRenderer = {
             img.className = 'pixel-furniture';
             img.id = `furniture-${itemData.uid}`; 
             
-            // 定位
             img.style.left = itemData.x + '%';
             img.style.top = itemData.y + '%';
 
-            // --- ✨ 新增：应用翻转 ---
-            // 默认为 1
             const dir = itemData.direction || 1;
-            // 我们把 scaleX 放在 dataset 里或者直接 apply transform
-            // 注意：因为 hover 效果里也有 transform，所以这里不仅要设置初始值，
-            // 最好把 direction 存到 dataset 里，让 CSS 或 JS 统一处理
             img.style.setProperty('--dir',dir); 
-            // img.style.transform = `scaleX(${dir})`; 
 
-            // ... 设置宽度 ...
-            if (config.type === 'desk') img.style.width = '22%';
-            else if (config.type === 'bookshelf') img.style.width = '12%';
-            else if (config.type === 'rug') img.style.width = '25%';
-            else img.style.width = '15%'; 
+            // === 📐 尺寸控制中心 (按 Type) ===
+            // 这里我们根据 type 来严格分配尺寸
+            switch (config.type) {
+                case 'desk':      img.style.width = '22%'; break;
+                case 'bookshelf': img.style.width = '12%'; break;
+                case 'rug':       img.style.width = '25%'; break;
+                case 'chair':     img.style.width = '8%';  break; //
+                case 'bed':       img.style.width = '32%'; break; //
+                default:          img.style.width = '15%'; break; // deco 等
+            }
 
             img.style.zIndex = Math.floor(itemData.y);
 
-            // ... 事件绑定 (记得把 itemData.direction 传给 startDrag) ...
-            img.onmousedown = (e) => {
-                if (DragManager.isDecorating) {
-                    // ✨ 传入当前的 direction
-                    DragManager.startDragExisting(e, itemData.uid, config.src, itemData.direction || 1);
-                }
-            };
-            
-            // 样式大小逻辑 (必须与 renderInventoryBar 里的比例保持一致)
-            if (config.type === 'desk') img.style.width = '22%';
-            else if (config.type === 'bookshelf') img.style.width = '12%';
-            else if (config.type === 'rug') img.style.width = '25%';
-            else img.style.width = '15%'; // 默认大小
-
-            // 纵深排序
-            img.style.zIndex = Math.floor(itemData.y);
-
-            // --- 事件绑定 ---
-
-            // A. 鼠标按下：装修模式下触发拖拽
+            // 事件绑定
             img.onmousedown = (e) => {
                 if (DragManager.isDecorating) {
                     DragManager.startDragExisting(e, itemData.uid, config.src, itemData.direction || 1);
                 }
             };
 
-            // B. 鼠标点击：正常模式下触发功能
             img.onclick = () => {
                 if (DragManager.isDecorating) return;
 
@@ -350,8 +335,8 @@ export const UIRenderer = {
                 } else if (config.type === 'rug') {
                     this.toggleMap(true);
                 }
+                // 床和椅子的点击事件暂留空，以后可加“睡觉”或“坐下”
             };
-
             container.appendChild(img);
         });
     },
@@ -405,32 +390,30 @@ export const UIRenderer = {
                 }
 
                 // --- 绑定拖拽 (包含尺寸计算) ---
-                slot.onmousedown = (e) => {
-                    // 1. 获取当前房间容器的实际像素宽度
+               slot.onmousedown = (e) => {
                     const roomEl = document.querySelector('.iso-room');
                     const roomWidth = roomEl ? roomEl.offsetWidth : 1000;
 
-                    // 2. 计算目标宽度比例 (必须与 renderRoomFurniture 中的百分比一致)
+                    // === 📐 拖拽尺寸同步 (按 Type) ===
                     let widthPercent = 0.15; // 默认
                     
-                    if (config.type === 'desk') widthPercent = 0.22;
-                    else if (config.type === 'bookshelf') widthPercent = 0.12;
-                    else if (config.type === 'rug') widthPercent = 0.25;
+                    switch (config.type) {
+                        case 'desk':      widthPercent = 0.22; break;
+                        case 'bookshelf': widthPercent = 0.12; break;
+                        case 'rug':       widthPercent = 0.25; break;
+                        case 'chair':     widthPercent = 0.08; break; // 
+                        case 'bed':       widthPercent = 0.32; break; // 
+                        default:          widthPercent = 0.15; break;
+                    }
                     
-                    // 3. 算出像素值
                     const targetWidth = roomWidth * widthPercent;
-
-                    // 4. 开始拖拽，传入 targetWidth
                     DragManager.startDragNew(e, itemId, config.src, targetWidth);
                 };
             } else {
-                // 没有库存 -> 变灰
                 slot.style.opacity = '0.4';
                 slot.style.cursor = 'default';
                 slot.title = "已全部摆放";
-                // 不绑定事件
             }
-
             listEl.appendChild(slot);
         });
     }

@@ -10,45 +10,49 @@ export const UserData = {
     },
 
     // 初始化
-    async init() {
-        // 0. 读取存档
+  async init() {
         const saved = await window.ithacaSystem.loadData('user_data.json');
-        
         if (saved) {
             this.state = JSON.parse(saved);
         }
 
-        // --- 存档兼容性修补 (Migration) ---
+        // 兼容性修补
+        if (!this.state.inventory) this.state.inventory = [];
+        if (typeof this.state.ink === 'undefined') this.state.ink = 0;
 
-        // 1. 确保背包存在
-        if (!this.state.inventory) {
-            this.state.inventory = [];
-        }
-        
-        // 2. 确保墨水存在
-        if (typeof this.state.ink === 'undefined') {
-            this.state.ink = 0;
-        }
-
-        // 3. 【新增】初始化房间布局
-        // 如果存档里没有 layout 字段（说明是老存档或新玩家），初始化默认家具
-        if (!Array.isArray(this.state.layout)) {
-            // 定义默认家具布局 (uid 使用时间戳防止重复)
+        // === 初始化默认房间布局 (初始五件套) ===
+        // 只有当完全没有布局记录时才执行（新游戏）
+        if (!Array.isArray(this.state.layout) || this.state.layout.length === 0) {
             const now = Date.now();
             this.state.layout = [
-                { uid: now,     itemId: 'item_desk_default',      x: 38, y: 35 }, // 默认桌子位置
-                { uid: now + 1, itemId: 'item_bookshelf_default', x: 65, y: 32 }, // 默认书架位置
-                { uid: now + 2, itemId: 'item_rug_default',       x: 45, y: 55 }  // 默认地毯位置
+                // 1. 桌子 (中)
+                { uid: now,     itemId: 'item_desk_default',      x: 38, y: 35 }, 
+                // 2. 书架 (右)
+                { uid: now + 1, itemId: 'item_bookshelf_default', x: 65, y: 32 }, 
+                // 3. 地毯 (前)
+                { uid: now + 2, itemId: 'item_rug_default',       x: 45, y: 55 },
+                // 4. 椅子 (桌前) - 44, 42 大概在桌子前方中间
+                { uid: now + 3, itemId: 'item_chair_default',     x: 44, y: 42 },
+                // 5. 床 (左下角) - 15, 35 靠左墙
+                { uid: now + 4, itemId: 'item_bed_default',       x: 15, y: 35 }
             ];
 
             // 确保这些默认家具的所有权也在背包里
-            ['item_desk_default', 'item_bookshelf_default', 'item_rug_default'].forEach(id => {
+            const starterPack = [
+                'item_desk_default', 
+                'item_bookshelf_default', 
+                'item_rug_default', 
+                'item_chair_default',
+                'item_bed_default'
+            ];
+
+            starterPack.forEach(id => {
                 if (!this.state.inventory.includes(id)) {
                     this.state.inventory.push(id);
                 }
             });
             
-            // 保存一次初始状态
+            // 初始化完毕，保存一次
             this.save();
         }
     },

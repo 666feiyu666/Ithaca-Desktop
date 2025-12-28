@@ -18,7 +18,7 @@ export const Binder = {
     },
 
     // 最终出版 (Finalize)
-    publish(title) {
+    publish(title, coverImg) {
         if (this.currentManuscript.length < 10) {
             return { success: false, msg: "书稿内容太少，无法出版。" };
         }
@@ -27,7 +27,9 @@ export const Binder = {
             id: Date.now(),
             title: title || "无题",
             content: this.currentManuscript,
-            date: new Date().toLocaleDateString()
+            date: new Date().toLocaleDateString(),
+            // ✨ 保存封面图片路径，默认给一个
+            cover: coverImg || 'assets/images/booksheet1.png' 
         };
 
         Library.addBook(newBook);

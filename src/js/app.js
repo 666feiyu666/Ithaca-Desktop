@@ -124,24 +124,42 @@ function bindEvents() {
 
     // --- B. 装订工作台 (Workbench System) ---
 
-    const workbenchModal = document.getElementById('workbench-modal');
+    // 1. 监听封皮选择点击
+    const coverOptions = document.querySelectorAll('.cover-option');
+    // 暂存当前选中的封皮，默认为第一张
+    let selectedCover = 'assets/images/booksheet1.png';
 
-   // B1. 打开工作台
+    coverOptions.forEach(img => {
+        img.onclick = () => {
+            // 移除其他选中状态
+            coverOptions.forEach(opt => opt.classList.remove('selected'));
+            // 选中当前
+            img.classList.add('selected');
+            // 更新变量 (注意：这里需要完整的路径，或者你只存文件名然后在 Binder 里拼路径)
+            // 这里我们简单处理，假设 data-cover 里存的是文件名
+            selectedCover = 'assets/images/' + img.getAttribute('data-cover');
+        };
+    });
+
+    // B1. 打开工作台
     document.getElementById('btn-open-workbench').onclick = () => {
+        const workbenchModal = document.getElementById('workbench-modal');
         workbenchModal.style.display = 'flex';
         
-        // 重置搜索框
+        // 重置
         const searchInput = document.getElementById('workbench-search');
         if (searchInput) searchInput.value = ""; 
-        
-        // 重置标题框
         const titleInput = document.getElementById('manuscript-title-input');
         if (titleInput) titleInput.value = "";
-
-        // 渲染列表 (无过滤)
-        UIRenderer.renderWorkbenchList();
         
-        // 载入当前暂存的书稿
+        // ✨ 重置封皮选择：默认选第一个
+        coverOptions.forEach(opt => opt.classList.remove('selected'));
+        if(coverOptions.length > 0) {
+            coverOptions[0].classList.add('selected');
+            selectedCover = 'assets/images/' + coverOptions[0].getAttribute('data-cover');
+        }
+
+        UIRenderer.renderWorkbenchList();
         document.getElementById('manuscript-editor').value = Binder.currentManuscript;
     };
 
@@ -165,44 +183,37 @@ function bindEvents() {
         Binder.updateManuscript(e.target.value);
     });
 
-    // B4. 出版书籍 (Publish) - 读取自定义标题
+   // B4. 出版书籍 (Publish)
     const btnPublish = document.getElementById('btn-publish');
     if (btnPublish) {
         btnPublish.onclick = () => {
-            // 1. 获取内容
             const editor = document.getElementById('manuscript-editor');
             const finalContent = editor.value;
             Binder.updateManuscript(finalContent);
 
-            // 2. 获取标题 (✨ 修改点)
             const titleInput = document.getElementById('manuscript-title-input');
             let finalTitle = titleInput.value.trim();
 
-            // 3. 校验
             if (finalContent.length < 10) {
                 alert(`🚫 字数不够！\n至少需要 10 个字。`);
                 return;
             }
 
             if (!finalTitle) {
-                // 如果用户没填标题，给一个默认的
-                // 或者强制要求填： alert("请给这本书起个名字！"); return;
                 finalTitle = "无题_" + new Date().toLocaleDateString().replace(/\//g, '');
             }
 
-            // 4. 执行出版 (传入 finalTitle)
-            const result = Binder.publish(finalTitle);
+            // ✨ 修改：传入 selectedCover
+            const result = Binder.publish(finalTitle, selectedCover);
             
-            // 5. 结果反馈
             if (result.success) {
                 alert(`🎉 出版成功！\n书名：《${finalTitle}》\n获得墨水：${Math.floor(finalContent.length / 2)} ml`);
                 
                 UIRenderer.renderBookshelf();
                 UIRenderer.updateStatus();
                 
-                // 清理
                 editor.value = "";
-                if (titleInput) titleInput.value = ""; // 清空标题
+                if (titleInput) titleInput.value = "";
                 document.getElementById('workbench-modal').style.display = 'none';
             } else {
                 alert("❌ 出版出错：" + result.msg);
