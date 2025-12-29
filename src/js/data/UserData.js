@@ -6,7 +6,8 @@ export const UserData = {
         ink: 0,
         draft: "",
         inventory: [], // 背包：记录拥有哪些物品ID，例如 ['item_desk_default', 'item_cat_orange']
-        layout: []     // 房间布局：记录摆出来的物品位置，例如 [{ uid: 123, itemId: '...', x: 30, y: 40 }]
+        layout: [],     // 房间布局：记录摆出来的物品位置，例如 [{ uid: 123, itemId: '...', x: 30, y: 40 }]
+        hasFoundMysteryBook: false // 是否已获得神秘书籍
     },
 
     // 初始化

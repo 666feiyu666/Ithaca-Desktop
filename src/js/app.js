@@ -160,7 +160,7 @@ function bindEvents() {
         coverOptions.forEach(opt => opt.classList.remove('selected'));
         if(coverOptions.length > 0) {
             coverOptions[0].classList.add('selected');
-            selectedCover = 'assets/images/' + coverOptions[0].getAttribute('data-cover');
+            selectedCover = 'assets/images/booksheet' + coverOptions[0].getAttribute('data-cover');
         }
 
         UIRenderer.renderWorkbenchList();

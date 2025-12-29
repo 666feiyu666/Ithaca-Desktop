@@ -1,0 +1,30 @@
+/* src/css/story.css */
+
+/* 剧情发现时的震动效果 */
+.shake-room {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* 糖水菠萝日记在列表中的视觉效果 */
+.book-item-container[title*="糖水菠萝"] {
+    filter: sepia(0.3) contrast(1.1); /* 泛黄的旧纸感 */
+}
+
+/* 修改 intro-container 的样式 */
+.intro-container {
+    /* ... 原有属性 ... */
+    background: transparent; /* 允许看到底层 */
+    transition: background 0.5s ease;
+}
+
+/* 确保对话框在最上层，但背景可以穿透 */
+.dialogue-box-container {
+    z-index: 10001; /* 高于家具层级 */
+}

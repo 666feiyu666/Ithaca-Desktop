@@ -1,4 +1,4 @@
-/* src/js/data/Journal.js - Electron 版 */
+/* src/js/data/Journal.js */
 export const Journal = {
     entries: [], 
 

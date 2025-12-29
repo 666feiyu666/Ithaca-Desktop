@@ -15,6 +15,24 @@ export const Library = {
         window.ithacaSystem.saveData('library_data.json', JSON.stringify(this.books));
     },
 
+    addMysteryBook(data) {
+        const mysteryBook = {
+            id: "mystery_book_01",
+            title: data.title,
+            author: data.author,
+            content: data.content,
+            cover: data.cover,
+            isMystery: true, // 标记为特殊
+            isCollected: true // 自动变为已收藏
+        };
+        
+        // 检查是否已存在
+        if (!this.books.find(b => b.id === mysteryBook.id)) {
+            this.books.unshift(mysteryBook); // 放在书架最前面
+            this.save();
+        }
+    },
+
     addBook(book) {
         this.books.push(book);
         this.save();

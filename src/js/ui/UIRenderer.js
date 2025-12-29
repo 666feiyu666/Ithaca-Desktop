@@ -3,6 +3,7 @@ import { Journal } from '../data/Journal.js';
 import { Library } from '../data/Library.js';
 import { UserData } from '../data/UserData.js';
 import { Binder } from '../logic/Binder.js';
+import { StoryManager } from '../logic/StoryManager.js';    
 import { DragManager } from '../logic/DragManager.js'; 
 import { marked } from '../libs/marked.esm.js';
 
@@ -352,15 +353,22 @@ export const UIRenderer = {
 
                 if (DragManager.isDecorating) return; // 装修模式下不触发功能
 
-                // ✨ 关键修复：打开新弹窗前，先关掉所有正在显示的弹窗
+                // 关键修复：打开新弹窗前，先关掉所有正在显示的弹窗
                 this._closeAllModals(); 
 
-                if (config.type === 'desk') {
+                if (config.type === 'bookshelf') {
+                    // ✨ 修改：点击书架时尝试触发剧情
+                    const isStoryTriggered = StoryManager.tryTriggerBookshelfStory();
+                    
+                    if (!isStoryTriggered) {
+                        // 如果剧情已演过，正常打开书架
+                        document.getElementById('modal-bookshelf-ui').style.display = 'flex';
+                        this.renderBookshelf(); 
+                    }
+                } else if (config.type === 'desk') {
+                    // 恢复书桌的纯净日记功能
                     document.getElementById('modal-desk').style.display = 'flex';
                     this.renderJournalList();
-                } else if (config.type === 'bookshelf') {
-                    document.getElementById('modal-bookshelf-ui').style.display = 'flex';
-                    if (this.renderBookshelf) this.renderBookshelf();
                 } else if (config.type === 'rug') {
                     this.toggleMap(true);
                 }
