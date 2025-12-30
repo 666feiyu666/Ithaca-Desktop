@@ -9,14 +9,11 @@ import { marked } from '../libs/marked.esm.js';
 
 // 物品数据库
 const ITEM_DB = {
-    // === 初始五件套 (独立类型，独立尺寸) ===
     'item_desk_default':      { src: 'assets/images/room/desktop.png',   type: 'desk' },
     'item_bookshelf_default': { src: 'assets/images/room/bookshelf.png', type: 'bookshelf' },
     'item_rug_default':       { src: 'assets/images/room/rug1.png',      type: 'rug' },
     'item_chair_default':     { src: 'assets/images/room/chair.png',     type: 'chair' }, 
     'item_bed_default':       { src: 'assets/images/room/bed.png',       type: 'bed' },   
-
-    // === 商店/其他物品 (统称 deco) ===
     'item_plant_01':          { src: 'assets/images/room/sofa.png',      type: 'deco' },
     'item_rug_blue':          { src: 'assets/images/room/rug2.png',      type: 'deco' },
     'item_cat_orange':        { src: 'assets/images/room/cat.png',       type: 'deco' }
@@ -27,18 +24,14 @@ export const UIRenderer = {
     currentBookId: null, 
 
     init() {
-        // 初始化时，尝试选中第一篇日记
         const all = Journal.getAll();
         if (all.length > 0) {
             this.activeEntryId = all[0].id;
         }
         
-        // 初始渲染
         this.updateStatus();
         this.renderJournalList();
         this.loadActiveEntry();
-        
-        // 渲染房间家具
         this.renderRoomFurniture();
     },
 
@@ -108,24 +101,19 @@ export const UIRenderer = {
         }
     },
 
-    // --- 4. 渲染工作台的素材列表 (支持搜索过滤) ---
+    // --- 4. 渲染工作台 ---
     renderWorkbenchList(filterText = "") {
         const listEl = document.getElementById('workbench-sources');
         if (!listEl) return;
 
         listEl.innerHTML = "";
-        
-        // 获取所有日记
         const allEntries = Journal.getAll();
 
-        // ✨ 过滤逻辑：
-        // 如果 filterText 不为空，就筛选出内容包含该文字的日记
         const filteredEntries = allEntries.filter(entry => {
-            if (!filterText) return true; // 没搜东西，显示全部
+            if (!filterText) return true;
             return entry.content.toLowerCase().includes(filterText.toLowerCase());
         });
 
-        // 如果搜不到东西，给个提示
         if (filteredEntries.length === 0) {
             listEl.innerHTML = `<div style="color:#999; text-align:center; margin-top:20px;">没有找到"${filterText}"相关的内容</div>`;
             return;
@@ -134,8 +122,6 @@ export const UIRenderer = {
         filteredEntries.forEach(entry => {
             const btn = document.createElement('button');
             const displayTime = entry.time || ""; 
-            
-            // 截取前15个字作为预览
             const preview = entry.content.substring(0, 15).replace(/\n/g, " ") + "...";
 
             btn.innerHTML = `
@@ -143,7 +129,6 @@ export const UIRenderer = {
                 <div style="font-size:12px; color:#666;">${preview}</div>
             `;
             
-            // 样式优化
             btn.style.display = 'block';
             btn.style.width = '100%';
             btn.style.marginBottom = '8px';
@@ -168,7 +153,7 @@ export const UIRenderer = {
         });
     },
 
-    // --- 5. 渲染书架 (Library) [重写] ---
+    // --- 5. 渲染书架 ---
     renderBookshelf() {
         const container = document.getElementById('bookshelf');
         if (!container) return;
@@ -177,32 +162,29 @@ export const UIRenderer = {
         const books = Library.getAll();
         
         books.forEach(book => {
-            // 1. 创建容器
             const wrapper = document.createElement('div');
             wrapper.className = 'book-item-container';
             wrapper.title = `${book.title}\n出版日期: ${book.date}`;
+            
+            // ✨ 如果是特殊书籍，加个特殊效果
+            if (book.isMystery) {
+                 wrapper.style.filter = "sepia(0.2) drop-shadow(0 0 5px gold)";
+            }
 
-            // 2. 创建封面图片
             const img = document.createElement('img');
-            // 兼容旧存档：如果没有 cover 字段，默认用第一张
             img.src = book.cover || 'assets/images/booksheet/booksheet1.png';
             img.className = 'book-cover-img';
             
-            // 3. 创建标题文字
             const titleSpan = document.createElement('div');
             titleSpan.className = 'book-title-text';
             titleSpan.innerText = book.title;
 
-            // 4. 组装
             wrapper.appendChild(img);
             wrapper.appendChild(titleSpan);
 
-            // 5. 点击事件
             wrapper.onclick = () => {
                 this.openBook(book);
             };
-            
-            // 6. 悬浮动效 (CSS已处理，JS只需负责点击)
             
             container.appendChild(wrapper);
         });
@@ -215,15 +197,13 @@ export const UIRenderer = {
         
         document.getElementById('reader-title').innerText = book.title;
         
-        // ✨ 修改这里：使用 marked 解析内容
-        // { breaks: true } 允许回车直接换行
         const htmlContent = marked.parse(book.content, { breaks: true });
-        document.getElementById('reader-text').innerHTML = htmlContent; // 注意用 innerHTML
+        document.getElementById('reader-text').innerHTML = htmlContent;
 
         if (dateEl) dateEl.innerText = `出版于: ${book.date}`;
 
         document.getElementById('reader-title-input').value = book.title;
-        document.getElementById('reader-content-input').value = book.content; // 编辑框里还是保留原文
+        document.getElementById('reader-content-input').value = book.content; 
 
         this.toggleReaderMode(false); 
         modal.style.display = 'flex';
@@ -245,16 +225,23 @@ export const UIRenderer = {
         }
     },
 
-    // --- 6. 更新顶部状态栏 ---
+    // --- 6. 更新顶部状态栏 (优化版) ---
     updateStatus() {
         const day = UserData.state.day;
         const ink = UserData.state.ink;
+        const totalWords = UserData.state.totalWords || 0;
 
+        // 获取三个 DOM 元素
         const roomDayEl = document.getElementById('day-display-room');
         const roomInkEl = document.getElementById('ink-display-room');
+        const roomWordEl = document.getElementById('word-display-room'); // ✨ 新增获取
         
+        // 分别更新，互不干扰
         if (roomDayEl) roomDayEl.innerText = day;
         if (roomInkEl) roomInkEl.innerText = ink;
+        
+        // ✨ 专门更新字数
+        if (roomWordEl) roomWordEl.innerText = totalWords;
     },
 
     // --- 7. 日志系统 ---
@@ -287,20 +274,17 @@ export const UIRenderer = {
         }
     },
 
-    // --- 9. 渲染房间家具 (智能排序修复版) ---
+    // --- 9. 渲染房间家具 ---
     renderRoomFurniture() {
         const container = document.querySelector('.iso-room');
         if (!container) return;
 
-        // 1. 清理旧家具
         const oldItems = container.querySelectorAll('.pixel-furniture');
         oldItems.forEach(el => el.remove());
 
         if (!UserData.state.layout) return;
 
-        // ✨ 关键修复 A：智能排序
-        // 按照 Y 坐标从小到大排序（远处的先画，近处的后画）
-        // 这样可以确保视觉遮挡关系和点击层级完全一致
+        // Y轴排序
         const sortedLayout = [...UserData.state.layout].sort((a, b) => a.y - b.y);
 
         sortedLayout.forEach(itemData => {
@@ -314,14 +298,11 @@ export const UIRenderer = {
             
             img.style.left = itemData.x + '%';
             img.style.top = itemData.y + '%';
-            
-            // 设置层级：y坐标越大，层级越高（越靠近屏幕）
             img.style.zIndex = Math.floor(itemData.y);
 
             const dir = itemData.direction || 1;
             img.style.setProperty('--dir', dir); 
 
-            // 尺寸定义
             switch (config.type) {
                 case 'desk':      img.style.width = '22%'; break;
                 case 'bookshelf': img.style.width = '12%'; break;
@@ -331,42 +312,35 @@ export const UIRenderer = {
                 default:          img.style.width = '15%'; break;
             }
 
-            // --- 🖱️ 交互事件修复 ---
-
-            // 1. 拖拽按下
+            // 拖拽
             img.onmousedown = (e) => {
                 if (DragManager.isDecorating) {
-                    e.stopPropagation(); // 防止穿透
+                    e.stopPropagation(); 
                     DragManager.startDragExisting(e, itemData.uid, config.src, itemData.direction || 1);
                 }
             };
 
-            // 新增一个内部私有方法，用于关闭所有弹窗
             this._closeAllModals = () => {
                 const modals = document.querySelectorAll('.modal-overlay');
                 modals.forEach(m => m.style.display = 'none');
             };
 
-            // 修改家具点击事件
+            // 点击事件
             img.onclick = (e) => {
-                e.stopPropagation(); // 阻止事件冒泡
+                e.stopPropagation(); 
 
-                if (DragManager.isDecorating) return; // 装修模式下不触发功能
+                if (DragManager.isDecorating) return; 
 
-                // 关键修复：打开新弹窗前，先关掉所有正在显示的弹窗
                 this._closeAllModals(); 
 
                 if (config.type === 'bookshelf') {
-                    // ✨ 修改：点击书架时尝试触发剧情
                     const isStoryTriggered = StoryManager.tryTriggerBookshelfStory();
                     
                     if (!isStoryTriggered) {
-                        // 如果剧情已演过，正常打开书架
                         document.getElementById('modal-bookshelf-ui').style.display = 'flex';
                         this.renderBookshelf(); 
                     }
                 } else if (config.type === 'desk') {
-                    // 恢复书桌的纯净日记功能
                     document.getElementById('modal-desk').style.display = 'flex';
                     this.renderJournalList();
                 } else if (config.type === 'rug') {
@@ -378,32 +352,28 @@ export const UIRenderer = {
         });
     },
 
-    // --- 10. 渲染底部背包栏 (修正版：计算像素宽度) ---
+    // --- 10. 渲染底部背包栏 ---
     renderInventoryBar() {
         const listEl = document.getElementById('inventory-bar');
         if (!listEl) return;
         
         listEl.innerHTML = "";
 
-        // 1. 统计拥有总数
         const ownedCounts = {};
         UserData.state.inventory.forEach(itemId => {
             ownedCounts[itemId] = (ownedCounts[itemId] || 0) + 1;
         });
 
-        // 2. 统计已摆放数量
         const placedCounts = {};
         UserData.state.layout.forEach(item => {
             placedCounts[item.itemId] = (placedCounts[item.itemId] || 0) + 1;
         });
 
-        // 3. 计算“剩余可用数量”并渲染
         Object.keys(ownedCounts).forEach(itemId => {
             const totalOwned = ownedCounts[itemId];
             const alreadyPlaced = placedCounts[itemId] || 0;
             const availableCount = totalOwned - alreadyPlaced;
 
-            // 无论是否有剩余，只要拥有过就显示，只是置灰
             const config = ITEM_DB[itemId];
             if (!config) return;
 
@@ -414,11 +384,9 @@ export const UIRenderer = {
             img.src = config.src;
             slot.appendChild(img);
             
-            // 如果还有库存 -> 高亮且可拖拽
             if (availableCount > 0) {
                 slot.title = `按住拖拽到房间 (剩余: ${availableCount})`;
                 
-                // 数字角标
                 if (availableCount > 1) {
                     const countBadge = document.createElement('span');
                     countBadge.innerText = availableCount;
@@ -426,20 +394,18 @@ export const UIRenderer = {
                     slot.appendChild(countBadge);
                 }
 
-                // --- 绑定拖拽 (包含尺寸计算) ---
                slot.onmousedown = (e) => {
                     const roomEl = document.querySelector('.iso-room');
                     const roomWidth = roomEl ? roomEl.offsetWidth : 1000;
 
-                    // === 📐 拖拽尺寸同步 (按 Type) ===
-                    let widthPercent = 0.15; // 默认
+                    let widthPercent = 0.15; 
                     
                     switch (config.type) {
                         case 'desk':      widthPercent = 0.22; break;
                         case 'bookshelf': widthPercent = 0.12; break;
                         case 'rug':       widthPercent = 0.25; break;
-                        case 'chair':     widthPercent = 0.08; break; // 
-                        case 'bed':       widthPercent = 0.32; break; // 
+                        case 'chair':     widthPercent = 0.08; break; 
+                        case 'bed':       widthPercent = 0.32; break; 
                         default:          widthPercent = 0.15; break;
                     }
                     
