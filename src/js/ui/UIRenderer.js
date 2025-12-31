@@ -419,5 +419,60 @@ export const UIRenderer = {
             }
             listEl.appendChild(slot);
         });
-    }
+    },
+
+    // ✨ 新增：渲染背包
+    renderBackpack() {
+        const gridEl = document.getElementById('backpack-grid');
+        const detailEmpty = document.getElementById('bp-detail-empty');
+        const detailContent = document.getElementById('bp-detail-content');
+        
+        if (!gridEl) return;
+
+        gridEl.innerHTML = "";
+        
+        // 1. 获取所有收集到的碎片 ID
+        // (将来可以在这里合并 fragments 和 otherItems)
+        const fragments = UserData.state.fragments || [];
+
+        if (fragments.length === 0) {
+            gridEl.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#ccc; margin-top:50px;">背包空空如也</div>`;
+            return;
+        }
+
+        // 2. 遍历渲染
+        fragments.forEach(fragId => {
+            // 从 StoryManager 获取静态数据
+            const info = StoryManager.getFragmentDetails(fragId);
+            if (!info) return; // 防止数据对不上
+
+            const slot = document.createElement('div');
+            slot.className = 'bp-slot';
+            slot.title = info.title;
+            
+            const img = document.createElement('img');
+            img.src = info.icon || 'assets/images/items/note1.png'; // 默认图标
+            
+            slot.appendChild(img);
+
+            // 点击查看详情
+            slot.onclick = () => {
+                // 移除其他选中态
+                document.querySelectorAll('.bp-slot').forEach(el => el.classList.remove('active'));
+                slot.classList.add('active');
+
+                // 显示详情
+                detailEmpty.style.display = 'none';
+                detailContent.style.display = 'block';
+                
+                document.getElementById('bp-detail-img').src = info.icon;
+                document.getElementById('bp-detail-title').innerText = info.title;
+                document.getElementById('bp-detail-origin').innerText = info.origin;
+                // 显示具体的文本内容
+                document.getElementById('bp-detail-desc').innerText = info.content;
+            };
+
+            gridEl.appendChild(slot);
+        });
+    },
 };

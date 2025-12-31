@@ -1,10 +1,182 @@
-/* src/js/logic/StoryManager.js - 完整版 */
+/* src/js/logic/StoryManager.js - 完整版 (碎片收集与合成机制) */
 import { UserData } from '../data/UserData.js';
 import { Library } from '../data/Library.js';
 import { UIRenderer } from '../ui/UIRenderer.js';
 
 export const StoryManager = {
-    // ===原有剧情剧本===
+    // ============================================================
+    // 1. 碎片与合成配置 (Fragments & Synthesis)
+    // ============================================================
+
+    // 📜 碎片数据库：定义每一页的内容
+    fragmentDB: {
+        "frag_pineapple_01": {
+            title: "日记残页：微光",
+            content: "2024年1月... 只有便利店的灯光是永远为我亮着的...",
+            origin: "字数里程碑",
+            icon: "assets/images/item/note1.png"
+        },
+        "frag_pineapple_02": {
+            title: "日记残页：雨伞",
+            content: "2024年2月... 雨下得很大，伞却忘在了地铁上...",
+            origin: "字数里程碑",
+            icon: "assets/images/item/note1.png"
+        },
+        "frag_pineapple_03": {
+            title: "日记残页：决定",
+            content: "2024年5月... 也许是时候去寻找属于我的伊萨卡了。",
+            origin: "高阶里程碑或探索",
+            icon: "assets/images/item/note1.png"
+        }
+    },
+
+    // ⚗️ 合成配方：定义集齐哪些碎片可以合成哪本书
+    synthesisRecipes: [
+        {
+            bookId: "book_pineapple_diary_complete",
+            title: "糖水菠萝的日记",
+            cover: "assets/images/booksheet/booksheet0.png",
+            requiredFragments: ["frag_pineapple_01", "frag_pineapple_02", "frag_pineapple_03"],
+            // 合成后的完整内容
+            fullContent: `# 糖水菠萝的日记 (完整版)\n\n## 2024年1月15日\n今天下班路过楼下的便利店，那里的关东煮冒着热气...\n\n在这个城市里，只有便利店的灯光是永远为我亮着的。\n\n## 2024年2月20日\n雨下得很大，伞却忘在了地铁上。\n\n我不喜欢雨天，它让城市变得黏糊糊的，像甩不掉的焦虑。\n\n## 2024年5月1日\n房租又涨了。看着窗外的车流，我突然意识到，我可能永远无法真正融入这座城市。\n\n也许是时候去寻找属于我的伊萨卡了。\n\n—— 糖水菠萝`
+        }
+    ],
+
+    // 🏆 字数里程碑配置：达到字数 -> 获得碎片 ID
+    milestones: [
+        { threshold: 10,   fragmentId: "frag_pineapple_01" }, // 测试用：10字
+        { threshold: 500,  fragmentId: "frag_pineapple_02" }, // 500字
+        { threshold: 2000, fragmentId: "frag_pineapple_03" }  // 2000字
+    ],
+
+    // ============================================================
+    // 2. 核心逻辑 (Core Logic)
+    // ============================================================
+
+    // --- A. 检查字数里程碑 (被 Journal.js 调用) ---
+    checkWordCountMilestones() {
+        const currentWords = UserData.state.totalWords || 0;
+
+        this.milestones.forEach(ms => {
+            if (currentWords >= ms.threshold) {
+                // 尝试解锁对应的碎片
+                this.unlockFragment(ms.fragmentId);
+            }
+        });
+    },
+
+    // --- B. 解锁碎片 (通用接口) ---
+    // 这个函数也可以被 CityEvent.js 调用，实现"探索获得碎片"
+    unlockFragment(fragmentId) {
+        // 尝试添加到 UserData (addFragment 返回 true 代表是新获得的)
+        const isNew = UserData.addFragment(fragmentId);
+        
+        if (isNew) {
+            const fragInfo = this.fragmentDB[fragmentId];
+            if (!fragInfo) return;
+
+            // 1. 视觉反馈 (房间震动)
+            const room = document.getElementById('scene-room');
+            if(room) {
+                room.classList.add('shake-room');
+                setTimeout(() => room.classList.remove('shake-room'), 500);
+            }
+
+            // 2. 弹窗通知玩家
+            this.showDialogue("✨ 发现碎片", 
+                `你捡到了一张泛黄的纸片：<br><strong style="font-size:1.1em;">《${fragInfo.title}》</strong><br><br>` + 
+                `<span style="color:#666; font-size:0.9em; font-style:italic;">"${fragInfo.content.substring(0, 25)}..."</span><br><br>` +
+                `<span style="font-size:0.8em; color:#888;">(收集更多碎片或许能还原整本书)</span>`
+            );
+
+            // 3. 获得碎片后，立刻检查是否满足合成条件
+            this.checkSynthesis();
+        }
+    },
+
+    // --- C. 检查合成 (Synthesis Check) ---
+    checkSynthesis() {
+        this.synthesisRecipes.forEach(recipe => {
+            // 1. 检查 Library 里是否已经有这本书了 (防止重复合成)
+            const alreadyHasBook = Library.getAll().find(b => b.id === recipe.bookId);
+            if (alreadyHasBook) return;
+
+            // 2. 检查 UserData 里是否拥有所有需要的碎片
+            const hasAllFragments = recipe.requiredFragments.every(fid => UserData.hasFragment(fid));
+
+            if (hasAllFragments) {
+                console.log(`[StoryManager] 碎片集齐，合成书籍: ${recipe.title}`);
+                
+                // 3. 执行合成：添加到书架
+                Library.addBook({
+                    id: recipe.bookId,
+                    title: recipe.title,
+                    content: recipe.fullContent,
+                    cover: recipe.cover,
+                    date: "重组的记忆",
+                    isMystery: true // 标记为特殊书籍 (会有光效)
+                });
+
+                // 4. 延迟一点弹窗，让玩家先看完碎片的提示
+                setTimeout(() => {
+                    this.showDialogue("📚 记忆重组", 
+                        `手中的碎片仿佛受到了感召，自动拼凑在了一起。<br><br>` +
+                        `获得完整书籍：<br><strong style="font-size:1.3em; color:#d84315;">《${recipe.title}》</strong><br><br>` +
+                        `它已经出现在你的书架上了。`
+                    );
+                    
+                    // 5. 实时刷新书架 UI (如果正开着)
+                    if(document.getElementById('modal-bookshelf-ui').style.display === 'flex') {
+                        UIRenderer.renderBookshelf();
+                    }
+                }, 2500); // 2.5秒后提示合成成功
+            }
+        });
+    },
+
+    getFragmentDetails(id){
+        return this.fragmentDB[id] || null;
+    },
+
+    // --- D. 通用弹窗显示 (UI Helper) ---
+    // 复用 IntroScene 的 HTML 结构，伪装成系统通知
+    showDialogue(title, htmlContent) {
+        const scene = document.getElementById('scene-intro');
+        const bgImg = scene.querySelector('.intro-bg');
+        const skipBtn = document.getElementById('btn-skip-intro');
+        
+        const speakerEl = document.getElementById('dialogue-speaker');
+        const textEl = document.getElementById('dialogue-text');
+        const box = document.getElementById('intro-dialogue-box');
+
+        // 显示遮罩
+        scene.style.display = 'flex';
+        scene.style.opacity = 1;
+        scene.style.background = 'rgba(0, 0, 0, 0.7)'; // 深色背景
+        
+        // 隐藏不需要的元素
+        if (bgImg) bgImg.style.display = 'none';
+        if (skipBtn) skipBtn.style.display = 'none';
+
+        // 设置内容
+        speakerEl.innerText = title;
+        speakerEl.style.color = "#d84315"; // 暖色标题
+        textEl.innerHTML = htmlContent;
+
+        // 点击关闭
+        box.onclick = () => {
+            scene.style.display = 'none';
+            scene.style.background = ''; // 恢复默认
+            if (bgImg) bgImg.style.display = 'block';
+            speakerEl.style.color = ""; 
+            box.onclick = null; // 解绑防止污染
+        };
+    },
+
+    // ============================================================
+    // 3. 初始剧情逻辑 (Original Story Scripts)
+    // ============================================================
+    
     scripts: {
         find_first_note: [
             { speaker: "我", text: "既然已经住下了，整理一下这边的旧书架吧。" },
@@ -18,120 +190,6 @@ export const StoryManager = {
 
     currentIndex: 0,
     activeScript: null,
-
-    // === ✨ 新增：字数里程碑配置 ===
-    // threshold: 触发字数
-    // id: 书籍唯一ID
-    // title: 书名
-    // content: 解锁的内容
-    milestones: [
-        {
-            threshold: 10,
-            id: "pineapple_page_02",
-            title: "日记：便利店的微光",
-            content: "# 2024年1月15日\n\n今天下班路过楼下的便利店，那里的关东煮冒着热气...\n\n在这个城市里，只有便利店的灯光是永远为我亮着的。\n\n—— 糖水菠萝",
-            cover: 'assets/images/booksheet/booksheet0.png'
-        },
-        {
-            threshold: 2000,
-            id: "pineapple_page_03",
-            title: "日记：丢失的伞",
-            content: "# 2024年2月20日\n\n雨下得很大，伞却忘在了地铁上。\n\n我不喜欢雨天，它让城市变得黏糊糊的，像甩不掉的焦虑。\n\n—— 糖水菠萝",
-            cover: 'assets/images/booksheet/booksheet0.png'
-        },
-        {
-            threshold: 5000,
-            id: "pineapple_page_04",
-            title: "日记：决定离开",
-            content: "# 2024年5月1日\n\n房租又涨了。看着窗外的车流，我突然意识到，我可能永远无法真正融入这座城市。\n\n也许是时候去寻找属于我的伊萨卡了。\n\n—— 糖水菠萝",
-            cover: 'assets/images/booksheet/booksheet0.png'
-        }
-    ],
-
-    // === ✨ 新增：检查字数里程碑 ===
-    // 这个函数会被 Journal.js 在 updateEntry 或 confirmEntry 时调用
-    checkWordCountMilestones() {
-        const currentWords = UserData.state.totalWords || 0;
-
-        this.milestones.forEach(milestone => {
-            // 1. 检查字数是否达标
-            if (currentWords >= milestone.threshold) {
-                
-                // 2. 检查这本书是否已经拥有了 (防止重复发放)
-                const alreadyHas = Library.getAll().find(book => book.id === milestone.id);
-                
-                if (!alreadyHas) {
-                    this.unlockMilestoneReward(milestone);
-                }
-            }
-        });
-    },
-
-    // 执行解锁动作
-    unlockMilestoneReward(milestone) {
-        // 1. 发放书籍
-        Library.addBook({
-            id: milestone.id,
-            title: milestone.title,
-            content: milestone.content,
-            date: "遗落的记录",
-            cover: milestone.cover,
-            isMystery: true // 标记为特殊书籍
-        });
-
-        // 2. 播放音效或震动 (视觉反馈)
-        const room = document.getElementById('scene-room');
-        if(room) {
-            room.classList.add('shake-room');
-            setTimeout(() => room.classList.remove('shake-room'), 500);
-        }
-
-        // 3. 刷新书架 UI (如果正开着)
-        if(document.getElementById('modal-bookshelf-ui').style.display === 'flex') {
-            UIRenderer.renderBookshelf();
-        }
-
-        // 4. ✨ 调用通用对话框显示奖励
-        this.showRewardDialogue(milestone);
-    },
-
-    // ✨ 新增：显示奖励对话框 (复用 Intro 的 UI)
-    showRewardDialogue(milestone) {
-        const scene = document.getElementById('scene-intro');
-        const bgImg = scene.querySelector('.intro-bg');
-        const skipBtn = document.getElementById('btn-skip-intro');
-        
-        const speakerEl = document.getElementById('dialogue-speaker');
-        const textEl = document.getElementById('dialogue-text');
-        const box = document.getElementById('intro-dialogue-box');
-
-        // A. 设置样式：半透明黑色背景，隐藏街道图，隐藏跳过按钮
-        scene.style.display = 'flex';
-        scene.style.opacity = 1;
-        scene.style.background = 'rgba(0, 0, 0, 0.6)'; // 深色遮罩，突出对话框
-        
-        if (bgImg) bgImg.style.display = 'none'; // 隐藏原本的街道背景
-        if (skipBtn) skipBtn.style.display = 'none'; // 隐藏跳过按钮
-
-        // B. 设置文本内容
-        speakerEl.innerText = "✨ 灵感涌现";
-        speakerEl.style.color = "#d84315"; // 换个暖色，突显特殊事件
-        
-        // 支持 HTML 标签来做简单的排版
-        textEl.innerHTML = `笔耕不辍，总字数达成 <span style="color:#d32f2f; font-weight:bold;">${milestone.threshold}</span>。<br><br>你好像听到了书架传来的响动。<br>已解锁新记忆：《${milestone.title}》。`;
-
-        // C. 绑定点击关闭事件 (一次性)
-        // 注意：这里要先覆盖之前的 onclick，防止触发 next()
-        box.onclick = () => {
-            scene.style.display = 'none';
-            // 恢复现场 (为了不影响下次 IntroScene 使用)
-            scene.style.background = ''; // 清除内联样式，恢复 CSS 默认
-            if (bgImg) bgImg.style.display = 'block';
-            speakerEl.style.color = ""; // 恢复默认颜色
-        };
-    },
-
-    // === 原有逻辑：书架剧情 ===
 
     tryTriggerBookshelfStory() {
         // 如果已经拿过第一本神秘日记，或者还没看新手引导，就不触发
@@ -149,11 +207,8 @@ export const StoryManager = {
         const scene = document.getElementById('scene-intro');
         scene.style.display = 'flex';
         scene.style.opacity = 1;
-        
-        // 剧情模式：背景稍微亮一点的遮罩
         scene.style.background = 'rgba(0, 0, 0, 0.4)'; 
         
-        // 隐藏那个硬编码在 HTML 里的开场白背景图
         const bgImg = scene.querySelector('.intro-bg');
         if (bgImg) bgImg.style.display = 'none';
 
@@ -166,7 +221,6 @@ export const StoryManager = {
         document.getElementById('dialogue-speaker').innerText = line.speaker;
         document.getElementById('dialogue-text').innerText = line.text;
         
-        // 增加震动反馈
         if (line.text.includes("用力拉拽")) {
             const room = document.getElementById('scene-room');
             room.classList.add('shake-room');
@@ -174,7 +228,6 @@ export const StoryManager = {
         }
 
         const box = document.getElementById('intro-dialogue-box');
-        // 必须重新绑定，防止多次覆盖
         box.onclick = () => this.next();
     },
 
@@ -191,15 +244,14 @@ export const StoryManager = {
         const scene = document.getElementById('scene-intro');
         scene.style.display = 'none';
 
-        // 恢复背景图显示，以免影响下次开场
         const bgImg = scene.querySelector('.intro-bg');
         if (bgImg) bgImg.style.display = 'block';
 
-        // 1. 记录剧情状态
+        // 记录状态
         UserData.state.hasFoundMysteryEntry = true;
         UserData.save();
 
-        // 2. 发放第一本特殊日记
+        // 发放第一本引导书籍 (这个不走碎片逻辑，直接给，作为新手引导)
         Library.addBook({
             id: "mystery_pineapple_01",
             title: "遗留的日记",
@@ -208,7 +260,6 @@ export const StoryManager = {
             cover: 'assets/images/booksheet/booksheet0.png'
         });
 
-        // 3. UI 引导
         document.getElementById('modal-bookshelf-ui').style.display = 'flex';
         UIRenderer.renderBookshelf();
         

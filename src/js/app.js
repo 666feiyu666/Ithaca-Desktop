@@ -1,4 +1,4 @@
-/* src/js/app.js - 完整版 (修复字数显示) */
+/* src/js/app.js - 完整版 (包含背包系统) */
 
 // 1. 引入所有模块
 import { Journal } from './data/Journal.js';
@@ -313,9 +313,6 @@ function bindEvents() {
         };
     }
 
-    // 🔴 【核心修复】移除了此处原有的 UIRenderer.updateStatus 覆盖代码
-    // 现在完全由 UIRenderer.js 内部逻辑控制 UI 刷新，确保字数统计正常显示。
-
     // --- E. 阅读器编辑功能 (Reader Edit System) ---
     
     // E1. 点击“修订”按钮 -> 进入编辑模式
@@ -428,7 +425,7 @@ function bindEvents() {
         };
     }
 
-   // 4. 白天/黑夜切换 (Theme)
+    // 4. 白天/黑夜切换 (Theme)
     const btnTheme = document.getElementById('btn-icon-theme');
     if (btnTheme) {
         btnTheme.onclick = () => {
@@ -444,6 +441,26 @@ function bindEvents() {
                     UIRenderer.log("☀️ 天亮了，又是新的一天。");
                     btnTheme.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
                 }
+            }
+        };
+    }
+
+    // 5. ✨ 新增：背包 (Backpack)
+    const btnBackpack = document.getElementById('btn-icon-backpack');
+    if (btnBackpack) {
+        btnBackpack.onclick = () => {
+            const modal = document.getElementById('modal-backpack');
+            if (modal) {
+                modal.style.display = 'flex';
+                
+                // 重置详情页
+                const emptyEl = document.getElementById('bp-detail-empty');
+                const contentEl = document.getElementById('bp-detail-content');
+                if(emptyEl) emptyEl.style.display = 'block';
+                if(contentEl) contentEl.style.display = 'none';
+                
+                // 渲染内容
+                UIRenderer.renderBackpack();
             }
         };
     }
