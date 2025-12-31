@@ -10,8 +10,12 @@ export const UserData = {
         inventory: [], // 背包：记录拥有哪些物品ID
         layout: [],    // 房间布局：记录摆出来的物品位置
         hasFoundMysteryBook: false, // 是否已获得神秘书籍
-        totalWords: 0,   // ✨ 新增：生涯总字数
-        fragments: []
+        totalWords: 0,   // 生涯总字数
+        fragments: [],   // 已收集的碎片ID列表
+        
+        // ✨ 新增：手记本列表
+        // 结构: { id: 'nb_xxx', name: '我的小说', icon: 'path/to/img', isDefault: boolean, createdAt: timestamp }
+        notebooks: [] 
     },
 
     // 初始化
@@ -21,8 +25,10 @@ export const UserData = {
             this.state = JSON.parse(saved);
         }
 
-        // 兼容性修补
+        // --- 1. 基础数据兼容性修补 ---
         if (!this.state.inventory) this.state.inventory = [];
+        
+        // 新手礼包/房间重置检测
         if (!this.state.layout) {
             console.log("检测到新用户/重置状态，发放新手礼包...");
             this.state.layout = []; 
@@ -32,21 +38,35 @@ export const UserData = {
             });
             this.save();
         }
+
         if (typeof this.state.ink === 'undefined') this.state.ink = 0;
         if (typeof this.state.totalWords === 'undefined') this.state.totalWords = 0;
-        
-        // ✨ 兼容性修补：如果旧存档没有 fragments 字段，补上
         if (!this.state.fragments) this.state.fragments = [];
+        
+        // --- 2. ✨ 手记本系统初始化 ---
+        // 如果没有 notebook 数据（旧存档或新用户），初始化一个默认的“日常碎片”
+        if (!this.state.notebooks || !Array.isArray(this.state.notebooks) || this.state.notebooks.length === 0) {
+            console.log("初始化默认手记本...");
+            this.state.notebooks = [
+                { 
+                    id: 'nb_inbox', 
+                    name: '日常碎片', 
+                    // ✨ 使用上传的软木板素材作为图标
+                    icon: 'assets/images/booksheet/notebook.png', 
+                    isDefault: true, 
+                    createdAt: Date.now() 
+                }
+            ];
+            this.save();
+        }
 
-        // 旧存档迁移逻辑 (字数统计)
+        // --- 3. 旧存档迁移逻辑 (字数统计) ---
         if (this.state.totalWords === 0) {
              let allEntries = Journal.getAll();
              if (allEntries.length === 0) {
                 await Journal.init();
                 allEntries = Journal.getAll();
              }
-             // 简单的迁移检查：只有当 truly 0 且有日记时才跑，防止反复跑
-             // 这里简化处理，假设如果 savedWordCount 没记录过才跑
              let needSave = false;
              allEntries.forEach(entry => {
                 if (entry.isConfirmed && typeof entry.savedWordCount === 'undefined') {
@@ -58,13 +78,64 @@ export const UserData = {
              });
              if(needSave) {
                  this.save();
-                 Journal.save(); // Journal 也变了，需要保存
+                 Journal.save();
              }
         }
     },
 
-    // ✨ 新增：添加碎片
-    // 返回 true 表示是新获得的，返回 false 表示已经有了
+    // ============================================================
+    // ✨ 核心新增：手记本 (Notebook) 管理
+    // ============================================================
+
+    // 1. 创建新本子
+    createNotebook(name) {
+        const newNotebook = {
+            id: 'nb_' + Date.now(),
+            name: name || '未命名手记',
+            // ✨ 新建本子默认使用该图标
+            icon: 'assets/images/booksheet/notebook.png', 
+            createdAt: Date.now(),
+            isDefault: false
+        };
+        this.state.notebooks.push(newNotebook);
+        this.save();
+        return newNotebook;
+    },
+
+    // 2. 重命名本子
+    renameNotebook(id, newName) {
+        const nb = this.state.notebooks.find(n => n.id === id);
+        if (nb) {
+            nb.name = newName;
+            this.save();
+            return true;
+        }
+        return false;
+    },
+
+    // 3. 删除本子
+    deleteNotebook(id) {
+        // 保护默认收件箱不被删除
+        if (id === 'nb_inbox') return false;
+        
+        const index = this.state.notebooks.findIndex(n => n.id === id);
+        if (index !== -1) {
+            this.state.notebooks.splice(index, 1);
+            this.save();
+            return true;
+        }
+        return false;
+    },
+
+    // 4. 获取本子信息
+    getNotebook(id) {
+        return this.state.notebooks.find(n => n.id === id) || null;
+    },
+
+    // ============================================================
+    // 碎片与字数 (Fragments & Stats)
+    // ============================================================
+
     addFragment(fragmentId) {
         if (!this.state.fragments.includes(fragmentId)) {
             this.state.fragments.push(fragmentId);
@@ -74,7 +145,6 @@ export const UserData = {
         return false;
     },
 
-    // ✨ 新增：检查是否拥有某碎片
     hasFragment(fragmentId) {
         return this.state.fragments.includes(fragmentId);
     },
@@ -92,7 +162,9 @@ export const UserData = {
         window.ithacaSystem.saveData('user_data.json', JSON.stringify(this.state));
     },
 
-    // --- 基础资源管理 ---
+    // ============================================================
+    // 基础资源管理 (Ink & Time)
+    // ============================================================
 
     addInk(amount) {
         this.state.ink += amount;
@@ -113,7 +185,9 @@ export const UserData = {
         this.save();
     },
 
-    // --- 背包系统 (Inventory) ---
+    // ============================================================
+    // 背包系统 (Inventory)
+    // ============================================================
 
     addItem(itemId) {
         if (!this.state.inventory.includes(itemId)) {
@@ -126,7 +200,9 @@ export const UserData = {
         return this.state.inventory.includes(itemId);
     },
 
-    // --- 装修/布局系统 (Layout) ---
+    // ============================================================
+    // 装修/布局系统 (Layout)
+    // ============================================================
 
     // 1. 放置新家具
     placeFurniture(itemId, x, y, direction = 1) {
@@ -135,7 +211,7 @@ export const UserData = {
             itemId: itemId,
             x: x,
             y: y,
-            direction: direction // 记录朝向 (1 或 -1)
+            direction: direction 
         };
         this.state.layout.push(newItem);
         this.save();
@@ -148,7 +224,7 @@ export const UserData = {
         if (item) {
             item.x = x;
             item.y = y;
-            item.direction = direction; // 更新朝向
+            item.direction = direction;
             this.save();
         }
     },

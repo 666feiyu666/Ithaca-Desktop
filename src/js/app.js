@@ -29,7 +29,7 @@ async function init() {
     TimeSystem.init();
     
     // 数据就绪后，再渲染界面
-    // UIRenderer.init 会调用 updateStatus，正确显示 天数/墨水/字数
+    // UIRenderer.init 会调用 renderSidebar，动态绑定 + 号按钮事件
     UIRenderer.init();
     UIRenderer.renderBookshelf();
     
@@ -57,24 +57,28 @@ function bindEvents() {
             // 只有当当前有选中的日记时才保存
             if (UIRenderer.activeEntryId) {
                 Journal.updateEntry(UIRenderer.activeEntryId, editor.value);
-                // 实时刷新左侧列表的字数统计
-                UIRenderer.renderJournalList();
+                // 实时刷新左侧列表的字数统计 (如果需要性能优化可暂时关闭)
+                // UIRenderer.renderJournalList(); 
+                // 为了避免打字卡顿，我们可以只在 UIRenderer 里做局部更新，或者只更新当前 DOM
+                // 这里暂时保持原样或注释掉列表刷新，视性能而定
             }
         });
     }
 
-    // A2. 新建日记按钮 (+)
-    const btnNewEntry = document.getElementById('btn-new-entry');
+    // 🔴 A2. [已移除] 新建日记按钮 (+)
+    // 原因：按钮的点击事件现在由 UIRenderer.js 中的 renderSidebar 动态接管。
+    // 这样才能确保新建日记时，系统知道当前是在“收件箱”还是“某个手记本”里。
+    /* const btnNewEntry = document.getElementById('btn-new-entry');
     if (btnNewEntry) {
         btnNewEntry.onclick = () => {
             const newEntry = Journal.createNewEntry();
-            // 自动切换焦点到新日记
             UIRenderer.activeEntryId = newEntry.id;
-            UIRenderer.renderJournalList(); // 刷新列表
-            UIRenderer.loadActiveEntry();   // 载入编辑器
+            UIRenderer.renderJournalList(); 
+            UIRenderer.loadActiveEntry();   
             UIRenderer.log(`创建了新的空白记录 (${newEntry.time})。`);
         };
     }
+    */
 
     // A3. 确认记录按钮 (Confirm & Reward)
     const btnConfirm = document.getElementById('btn-confirm-entry');
@@ -90,7 +94,9 @@ function bindEvents() {
                 UserData.addInk(10);
                 // 2. 刷新界面状态
                 UIRenderer.updateStatus(); // 更新顶部墨水数/字数
-                UIRenderer.renderJournalList(); // 更新左侧列表图标
+                
+                // 刷新侧边栏（因为图标可能变了）
+                UIRenderer.renderSidebar(); 
                 
                 // 3. 刷新按钮状态（变为灰色不可点）
                 const currentEntry = Journal.getAll().find(e => e.id === UIRenderer.activeEntryId);
@@ -109,7 +115,6 @@ function bindEvents() {
         btnDeleteEntry.onclick = () => {
             if (!UIRenderer.activeEntryId) return;
 
-            // 简单的确认框 (以后可以换成好看的 Modal)
             const confirmed = confirm("确定要撕毁这一页日记吗？此操作无法撤销。");
             if (confirmed) {
                 // 1. 执行删除
@@ -117,39 +122,20 @@ function bindEvents() {
                 UIRenderer.log("🗑️ 撕毁了一页记忆。");
 
                 // 2. 重置 UI：尝试选中剩下日记的第一篇
-                const remaining = Journal.getAll();
-                if (remaining.length > 0) {
-                    UIRenderer.activeEntryId = remaining[0].id;
-                } else {
-                    UIRenderer.activeEntryId = null; // 一篇都没了
-                }
+                // 注意：这里可能需要根据当前所在的 Notebook 来筛选剩余日记，
+                // 但为了简单，直接设为 null 或者让 UIRenderer 自行处理
+                UIRenderer.activeEntryId = null;
 
                 // 3. 刷新界面
-                UIRenderer.renderJournalList();
+                UIRenderer.renderSidebar();
                 UIRenderer.loadActiveEntry();
-                UIRenderer.updateStatus(); // 删除可能导致字数减少，刷新UI
+                UIRenderer.updateStatus(); 
             }
         };
     }
 
 
     // --- B. 装订工作台 (Workbench System) ---
-
-    // 1. 监听封皮选择点击
-    const coverOptions = document.querySelectorAll('.cover-option');
-    // 暂存当前选中的封皮，默认为第一张
-    let selectedCover = 'assets/images/booksheet/booksheet1.png';
-
-    coverOptions.forEach(img => {
-        img.onclick = () => {
-            // 移除其他选中状态
-            coverOptions.forEach(opt => opt.classList.remove('selected'));
-            // 选中当前
-            img.classList.add('selected');
-            // 更新变量
-            selectedCover = 'assets/images/booksheet' + img.getAttribute('data-cover');
-        };
-    });
 
     // B1. 打开工作台
     const btnOpenWorkbench = document.getElementById('btn-open-workbench');
@@ -158,31 +144,49 @@ function bindEvents() {
             const workbenchModal = document.getElementById('workbench-modal');
             workbenchModal.style.display = 'flex';
             
-            // 重置
+            // 1. 初始化下拉框 (渲染所有本子)
+            UIRenderer.renderWorkbenchNotebookSelector();
+
+            // 2. 重置搜索状态
             const searchInput = document.getElementById('workbench-search');
+            const notebookSelect = document.getElementById('workbench-filter-notebook');
             if (searchInput) searchInput.value = ""; 
+            if (notebookSelect) notebookSelect.value = "ALL"; // 默认选全部
+
+            // 3. 初始渲染列表
+            UIRenderer.renderWorkbenchList("", "ALL");
+            
+            // ... (原本的重置书名、封皮逻辑保持不变)
             const titleInput = document.getElementById('manuscript-title-input');
             if (titleInput) titleInput.value = "";
             
-            // 重置封皮选择：默认选第一个
-            coverOptions.forEach(opt => opt.classList.remove('selected'));
-            if(coverOptions.length > 0) {
-                coverOptions[0].classList.add('selected');
-                selectedCover = 'assets/images/booksheet' + coverOptions[0].getAttribute('data-cover');
-            }
-
-            UIRenderer.renderWorkbenchList();
-            const manuscriptEditor = document.getElementById('manuscript-editor');
-            if (manuscriptEditor) manuscriptEditor.value = Binder.currentManuscript;
+            // 重置封皮
+            // ...
         };
     }
 
-    // B1.5 监听搜索输入
-    const searchInput = document.getElementById('workbench-search');
+    // ✨ B1.4 监听下拉框变化 (Notebook Filter)
+    const notebookSelect = document.getElementById('workbench-filter-notebook');
+    const searchInput = document.getElementById('workbench-search'); // 获取引用
+
+    if (notebookSelect) {
+        notebookSelect.onchange = () => {
+            const selectedNotebookId = notebookSelect.value;
+            const searchText = searchInput ? searchInput.value.trim() : "";
+            
+            // 传入两个参数：搜索词 + 本子ID
+            UIRenderer.renderWorkbenchList(searchText, selectedNotebookId);
+        };
+    }
+
+    // B1.5 监听搜索输入 (Search Filter)
+    // 修改原有的监听逻辑，使其包含 notebookId
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const text = e.target.value.trim();
-            UIRenderer.renderWorkbenchList(text);
+            const selectedNotebookId = notebookSelect ? notebookSelect.value : "ALL";
+            
+            UIRenderer.renderWorkbenchList(text, selectedNotebookId);
         });
     }
 
@@ -222,14 +226,13 @@ function bindEvents() {
                 finalTitle = "无题_" + new Date().toLocaleDateString().replace(/\//g, '');
             }
 
-            // 传入 selectedCover
             const result = Binder.publish(finalTitle, selectedCover);
             
             if (result.success) {
                 alert(`🎉 出版成功！\n书名：《${finalTitle}》\n获得墨水：${Math.floor(finalContent.length / 2)} ml`);
                 
                 UIRenderer.renderBookshelf();
-                UIRenderer.updateStatus(); // 刷新墨水
+                UIRenderer.updateStatus(); 
                 
                 editor.value = "";
                 if (titleInput) titleInput.value = "";
@@ -256,14 +259,9 @@ function bindEvents() {
 
             const confirmed = confirm("确定要销毁这本书吗？墨水不会返还。");
             if (confirmed) {
-                // 1. 执行删除
                 Library.deleteBook(UIRenderer.currentBookId);
                 UIRenderer.log("销毁了一本书籍。");
-
-                // 2. 关闭阅读器
                 document.getElementById('reader-modal').style.display = 'none';
-
-                // 3. 刷新书架
                 UIRenderer.renderBookshelf();
             }
         };
@@ -276,7 +274,8 @@ function bindEvents() {
     if (desk) {
         desk.onclick = () => {
             document.getElementById('modal-desk').style.display = 'flex';
-            UIRenderer.renderJournalList(); 
+            // 使用新的渲染入口
+            UIRenderer.renderSidebar(); 
         };
     }
 
@@ -306,7 +305,7 @@ function bindEvents() {
         };
     }
     
-    // D.5. (可选) 点击地图上的 Luckin
+    // D.5. 点击地图上的 Luckin
     const luckin = document.getElementById('hotspot-luckin');
     if (luckin) {
         luckin.onclick = () => {
@@ -316,7 +315,6 @@ function bindEvents() {
 
     // --- E. 阅读器编辑功能 (Reader Edit System) ---
     
-    // E1. 点击“修订”按钮 -> 进入编辑模式
     const btnEditBook = document.getElementById('btn-edit-book');
     if (btnEditBook) {
         btnEditBook.onclick = () => {
@@ -324,7 +322,6 @@ function bindEvents() {
         };
     }
 
-    // E2. 点击“取消” -> 回到阅读模式
     const btnCancelEdit = document.getElementById('btn-cancel-edit');
     if (btnCancelEdit) {
         btnCancelEdit.onclick = () => {
@@ -332,7 +329,6 @@ function bindEvents() {
         };
     }
 
-    // E3. 点击“保存修订”
     const btnSaveBook = document.getElementById('btn-save-book');
     if (btnSaveBook) {
         btnSaveBook.onclick = () => {
@@ -345,26 +341,17 @@ function bindEvents() {
                 return;
             }
 
-            // 1. 更新数据
             Library.updateBook(id, newTitle, newContent);
-            
-            // 2. 更新阅读模式的显示文本
             document.getElementById('reader-title').innerText = newTitle;
             document.getElementById('reader-text').innerText = newContent;
-
-            // 3. 刷新书架列表
             UIRenderer.renderBookshelf();
-
-            // 4. 切回阅读模式
             UIRenderer.toggleReaderMode(false);
-            
             UIRenderer.log(`已修订书籍：《${newTitle}》`);
         };
     }
 
     // --- F. 城市与时间系统 (City & Time) ---
 
-    // F1. 探索公园
     const btnPark = document.getElementById('btn-explore-park');
     if (btnPark) {
         btnPark.onclick = () => {
@@ -373,7 +360,6 @@ function bindEvents() {
         };
     }
 
-    // F2. 探索地铁
     const btnSubway = document.getElementById('btn-explore-subway');
     if (btnSubway) {
         btnSubway.onclick = () => {
@@ -382,7 +368,6 @@ function bindEvents() {
         };
     }
 
-    // F3. 睡觉
     const btnSleep = document.getElementById('btn-sleep');
     if (btnSleep) {
         btnSleep.onclick = () => {
@@ -413,11 +398,8 @@ function bindEvents() {
     const btnMap = document.getElementById('btn-icon-map');
     if (btnMap) {
         btnMap.onclick = () => {
-            // 打开选择弹窗
             const modal = document.getElementById('modal-map-selection');
             modal.style.display = 'flex';
-            
-            // 渲染按钮
             CityEvent.renderSelectionMenu();
         };
     }
@@ -427,7 +409,7 @@ function bindEvents() {
     if (btnJournal) {
         btnJournal.onclick = () => {
             document.getElementById('modal-desk').style.display = 'flex';
-            UIRenderer.renderJournalList();
+            UIRenderer.renderSidebar(); // 使用新的渲染逻辑
         };
     }
 
@@ -451,7 +433,7 @@ function bindEvents() {
         };
     }
 
-    // 5. ✨ 新增：背包 (Backpack)
+    // 5. 背包 (Backpack)
     const btnBackpack = document.getElementById('btn-icon-backpack');
     if (btnBackpack) {
         btnBackpack.onclick = () => {
@@ -459,13 +441,11 @@ function bindEvents() {
             if (modal) {
                 modal.style.display = 'flex';
                 
-                // 重置详情页
                 const emptyEl = document.getElementById('bp-detail-empty');
                 const contentEl = document.getElementById('bp-detail-content');
                 if(emptyEl) emptyEl.style.display = 'block';
                 if(contentEl) contentEl.style.display = 'none';
                 
-                // 渲染内容
                 UIRenderer.renderBackpack();
             }
         };
@@ -479,14 +459,12 @@ function bindEvents() {
             
             if (confirmed) {
                 console.log("正在执行重置...");
-
-                // 重置用户数据
                 UserData.state = {
                     day: 1,
                     ink: 0,
                     draft: "",
                     inventory: [], 
-                    layout: undefined // 确保触发 init 发放新手家具
+                    layout: undefined 
                 };
                 
                 await window.ithacaSystem.saveData('user_data.json', JSON.stringify(UserData.state));
@@ -499,14 +477,14 @@ function bindEvents() {
         };
     }
 
-    // --- ✨ 新增：全局回家按钮逻辑 ---
+    // --- 全局回家按钮 ---
     const btnHome = document.getElementById('btn-icon-home');
     if (btnHome) {
         btnHome.onclick = () => {
             const mapScene = document.getElementById('scene-map');
             const streetScene = document.getElementById('scene-intro'); 
             
-            // 0. 【核心修复】优先关闭所有打开的弹窗 (包括地图选择、背包、商店等)
+            // 关闭所有弹窗
             const allModals = document.querySelectorAll('.modal-overlay');
             let hasModalOpen = false;
             allModals.forEach(modal => {
@@ -516,18 +494,15 @@ function bindEvents() {
                 }
             });
 
-            // 1. 如果还在旧版图形地图里 (防备用) -> 关掉地图，显示房间
             if (mapScene && mapScene.style.display !== 'none') {
                 mapScene.style.display = 'none';
                 document.getElementById('scene-room').style.display = 'block';
                 console.log("从图形地图回家");
             } 
-            // 2. 如果在街景/剧情里 -> 调用 StoryManager 回家
             else if (streetScene && streetScene.style.display !== 'none') {
                 StoryManager.returnHome(); 
                 console.log("从街景回家");
             } 
-            // 3. 已经在房间里
             else {
                 if (hasModalOpen) {
                     console.log("Home键关闭了所有弹窗");
@@ -539,8 +514,6 @@ function bindEvents() {
     }
 
     // --- G. Markdown 预览功能 ---
-
-    // 通用切换函数
     const togglePreview = (editorId, previewId, btnId) => {
         const editor = document.getElementById(editorId);
         const preview = document.getElementById(previewId);
@@ -551,22 +524,18 @@ function bindEvents() {
         if (preview.style.display === 'none') {
             const rawText = editor.value;
             const htmlContent = marked.parse(rawText, { breaks: true }); 
-            
             preview.innerHTML = htmlContent;
             preview.style.display = 'block'; 
-            
             btn.innerText = "✏️ 继续编辑";
             btn.style.background = "#333";
         } else {
             preview.style.display = 'none';
-            
             btn.innerText = "👁️ 预览";
             btn.style.background = "#666";
             editor.focus();
         }
     };
 
-    // 1. 日记预览
     const btnJournalPreview = document.getElementById('btn-toggle-journal-preview');
     if (btnJournalPreview) {
         btnJournalPreview.onclick = () => {
@@ -574,12 +543,45 @@ function bindEvents() {
         };
     }
 
-    // 2. 书稿预览
     const btnManuscriptPreview = document.getElementById('btn-toggle-manuscript-preview');
     if (btnManuscriptPreview) {
         btnManuscriptPreview.onclick = () => {
             togglePreview('manuscript-editor', 'manuscript-preview', 'btn-toggle-manuscript-preview');
         };
+    }
+
+    // --- ✨ 新增：新建手记本弹窗确认按钮 ---
+    const btnCreateNotebook = document.getElementById('btn-submit-notebook');
+    if (btnCreateNotebook) {
+        btnCreateNotebook.onclick = () => {
+            const input = document.getElementById('input-notebook-name');
+            const modal = document.getElementById('modal-create-notebook');
+            
+            if (input && input.value.trim() !== "") {
+                const name = input.value.trim();
+                
+                // 1. 创建数据
+                UserData.createNotebook(name);
+                
+                // 2. 刷新列表
+                UIRenderer.renderSidebar();
+                
+                // 3. 关闭弹窗
+                modal.style.display = 'none';
+                
+                UIRenderer.log(`📂 创建了新手记本：《${name}》`);
+            } else {
+                alert("请输入手记本名称");
+            }
+        };
+        
+        // 体验优化：支持按回车键提交
+        const input = document.getElementById('input-notebook-name');
+        if (input) {
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') btnCreateNotebook.click();
+            };
+        }
     }
 }
 

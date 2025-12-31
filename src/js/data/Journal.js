@@ -7,19 +7,30 @@ export const Journal = {
 
     // 初始化：从本地文件加载数据
     async init() {
-        // 调用 preload.js 暴露的接口读取文件
         const saved = await window.ithacaSystem.loadData('journal_data.json');
         if (saved) {
             this.entries = JSON.parse(saved);
         }
         
+        // 兼容性处理：把旧的单字段 notebookId 迁移到 notebookIds 数组
+        this.entries.forEach(entry => {
+            if (!entry.notebookIds) {
+                entry.notebookIds = [];
+                // 如果有旧的归属，迁移过来；否则保持为空（归入默认收件箱）
+                if (entry.notebookId) {
+                    entry.notebookIds.push(entry.notebookId);
+                }
+            }
+        });
+
         // 如果完全没有日记（第一次运行），默认建一篇
         if (this.entries.length === 0) {
             this.createNewEntry();
         }
     },
 
-    // 创建新日记
+    // ✨ 修改：新建日记逻辑
+    // 既然是“先记录，后归类”，新建时默认为空数组，即属于 Inbox
     createNewEntry() {
         const now = new Date();
         const dateStr = now.toLocaleDateString(); 
@@ -31,12 +42,36 @@ export const Journal = {
             time: timeStr,
             content: "", 
             isConfirmed: false,
-            savedWordCount: 0 // 初始化基准字数
+            savedWordCount: 0,
+            
+            // ✨ 核心变更：默认为空数组，表示“未归档/收件箱”
+            // 用户之后可以通过 toggleNotebook 来添加归属
+            notebookIds: [] 
         };
         
         this.entries.unshift(newEntry); // 新的放最上面
         this.save();
         return newEntry;
+    },
+
+    // ✨ 核心新增：切换归属状态 (Toggle)
+    // 供 UI 层的“标签栏”调用：点一下加进去，再点一下移出来
+    toggleNotebook(entryId, notebookId) {
+        const entry = this.entries.find(e => e.id === entryId);
+        if (!entry) return;
+
+        // 确保数组存在
+        if (!entry.notebookIds) entry.notebookIds = [];
+
+        const index = entry.notebookIds.indexOf(notebookId);
+        if (index > -1) {
+            // 已存在 -> 移除 (取消勾选)
+            entry.notebookIds.splice(index, 1);
+        } else {
+            // 不存在 -> 添加 (勾选)
+            entry.notebookIds.push(notebookId);
+        }
+        this.save();
     },
 
     // 更新日记内容 (支持增量字数统计)
@@ -45,21 +80,17 @@ export const Journal = {
         if (entry) {
             entry.content = content;
 
-            // ✨ 核心逻辑：如果是"已确认"的日记，需要实时同步字数变化
+            // 如果是"已确认"的日记，需要实时同步字数变化
             if (entry.isConfirmed) {
                 const newCount = this._countWords(content);
-                const oldCount = entry.savedWordCount || 0; // 兼容旧数据
+                const oldCount = entry.savedWordCount || 0; 
                 const diff = newCount - oldCount;
 
                 // 只有字数发生实际变化时才更新 UserData
                 if (diff !== 0) {
-                    // 1. 更新全局总字数 (diff 可正可负)
                     UserData.updateWordCount(diff);
-                    
-                    // 2. 更新当前日记的基准值
                     entry.savedWordCount = newCount;
                     
-                    // 3. 如果是字数增加，尝试检查剧情里程碑
                     if (diff > 0) {
                         StoryManager.checkWordCountMilestones();
                     }
@@ -76,16 +107,11 @@ export const Journal = {
         if (entry && !entry.isConfirmed) {
             entry.isConfirmed = true;
 
-            // 1. 计算当前字数
             const currentCount = this._countWords(entry.content);
-            
-            // 2. 记录为基准值
             entry.savedWordCount = currentCount;
             
-            // 3. 计入生涯总字数
             if (currentCount > 0) {
                 UserData.updateWordCount(currentCount);
-                // 4. 触发剧情检查
                 StoryManager.checkWordCountMilestones();
             }
 
@@ -101,15 +127,15 @@ export const Journal = {
         if (index !== -1) {
             const entry = this.entries[index];
 
-            // ✨ 防刷分逻辑：如果删除的是已确认日记，需要扣除它贡献的字数
+            // 防刷分逻辑：扣除它贡献的字数
             if (entry.isConfirmed) {
                 const countToRemove = entry.savedWordCount || this._countWords(entry.content);
                 if (countToRemove > 0) {
-                    UserData.updateWordCount(-countToRemove); // 传入负数进行扣减
+                    UserData.updateWordCount(-countToRemove); 
                 }
             }
 
-            this.entries.splice(index, 1); // 从数组中移除
+            this.entries.splice(index, 1); 
             this.save();
             return true;
         }
@@ -127,7 +153,6 @@ export const Journal = {
 
     // --- 内部工具 ---
     
-    // 统一字数统计规则：去除所有空格、换行符后计算长度
     _countWords(text) {
         if (!text) return 0;
         return text.replace(/\s/g, '').length;

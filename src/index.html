@@ -175,6 +175,21 @@
         </div>
     </div>
 
+    <div id="modal-create-notebook" class="modal-overlay">
+        <div class="modal-content" style="width: 320px; text-align: center;">
+            <h3 style="margin-top: 0; color: #5d4037;">新建手记本</h3>
+            <p style="font-size: 12px; color: #888; margin-bottom: 15px;">为你的新想法建一个家</p>
+            
+            <input type="text" id="input-notebook-name" placeholder="例如：关于她的梦..." 
+                   style="width: 100%; padding: 12px; box-sizing: border-box; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none;">
+            
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-cancel" onclick="document.getElementById('modal-create-notebook').style.display='none'">取消</button>
+                <button id="btn-submit-notebook" class="btn-primary">创建</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-bookshelf-ui" class="modal-overlay full-screen-modal">
         <div class="modal-content bookshelf-layout">
             <header>
@@ -191,7 +206,14 @@
         <div class="modal-content workbench-layout">
             <div class="workbench-sidebar">
                 <h3>1. 选择素材</h3>
-                <input type="text" id="workbench-search" placeholder="🔍 搜索关键词或 #标签...">
+                
+                <div style="margin-bottom: 10px;">
+                    <select id="workbench-filter-notebook" class="pixel-font" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; background: #fff;">
+                        <option value="ALL">📂 所有记忆</option>
+                        </select>
+                </div>
+
+                <input type="text" id="workbench-search" placeholder="🔍 搜索关键词...">
                 <p class="hint">点击下方片段导入书稿</p>
                 <div id="workbench-sources" style="flex: 1; overflow-y: auto;"></div>
             </div>
