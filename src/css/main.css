@@ -107,7 +107,12 @@
 /* 8. 跳过按钮 */
 #btn-skip-intro {
     position: absolute;
-    top: 30px; right: 30px;
+    
+    /* 🔴 修改前： top: 30px; */
+    /* 🟢 修改后： 改为 bottom，让它沉底 */
+    bottom: 30px; 
+    right: 30px;
+    
     background: rgba(0,0,0,0.5);
     border: 2px solid rgba(255,255,255,0.3);
     color: #ddd;

@@ -80,3 +80,86 @@
     background: rgba(255, 255, 255, 0.2);
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
+
+/* === Galgame 风格选择菜单 === */
+
+/* 容器：居中，不需要太宽，像一个菜单单 */
+.map-selection-container {
+    width: 360px;
+    background: #fff;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    border: 2px solid #5d4037;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 标题区域 */
+.selection-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    border-bottom: 2px dashed #eee;
+    padding-bottom: 10px;
+    color: #5d4037;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.close-text-btn {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 14px;
+}
+.close-text-btn:hover { color: #d32f2f; }
+
+/* 选项列表容器 */
+.choices-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* 按钮之间的间距 */
+}
+
+/* ✨ 核心：胶囊按钮样式 */
+.gal-choice-btn {
+    width: 100%;
+    padding: 12px 20px;
+    background: #fff;
+    
+    /* 默认状态：红色细边框，圆角胶囊 */
+    border: 2px solid #dbaeb3; 
+    border-radius: 50px; 
+    
+    color: #5d4037;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ✨ 悬停状态：使用你上传的图片作为背景 */
+.gal-choice-btn:hover {
+    /* 引用你上传的图片 */
+    background-image: url('../assets/images/city/choice_light_hover.png');
+    background-size: 100% 100%; /* 拉伸铺满 */
+    background-repeat: no-repeat;
+    
+    color: #fff; /* 文字变白 */
+    border-color: transparent; /* 边框隐藏，因为图片自带边框 */
+    transform: scale(1.05); /* 微微放大 */
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.gal-choice-btn:active {
+    transform: scale(0.98);
+}

@@ -1,4 +1,4 @@
-/* src/js/app.js - 完整版 (包含背包系统) */
+/* src/js/app.js */
 
 // 1. 引入所有模块
 import { Journal } from './data/Journal.js';
@@ -10,6 +10,7 @@ import { CityEvent } from './logic/CityEvent.js';
 import { Shop } from './logic/Shop.js';
 import { DragManager } from './logic/DragManager.js';   
 import { TimeSystem } from './logic/TimeSystem.js';
+import { StoryManager } from './logic/StoryManager.js';
 import { UIRenderer } from './ui/UIRenderer.js';
 import { marked } from './libs/marked.esm.js';  
 
@@ -412,7 +413,12 @@ function bindEvents() {
     const btnMap = document.getElementById('btn-icon-map');
     if (btnMap) {
         btnMap.onclick = () => {
-            UIRenderer.toggleMap(true);
+            // 打开选择弹窗
+            const modal = document.getElementById('modal-map-selection');
+            modal.style.display = 'flex';
+            
+            // 渲染按钮
+            CityEvent.renderSelectionMenu();
         };
     }
 
@@ -489,6 +495,45 @@ function bindEvents() {
 
                 alert("♻️ 世界已重启。");
                 window.location.reload();
+            }
+        };
+    }
+
+    // --- ✨ 新增：全局回家按钮逻辑 ---
+    const btnHome = document.getElementById('btn-icon-home');
+    if (btnHome) {
+        btnHome.onclick = () => {
+            const mapScene = document.getElementById('scene-map');
+            const streetScene = document.getElementById('scene-intro'); 
+            
+            // 0. 【核心修复】优先关闭所有打开的弹窗 (包括地图选择、背包、商店等)
+            const allModals = document.querySelectorAll('.modal-overlay');
+            let hasModalOpen = false;
+            allModals.forEach(modal => {
+                if (modal.style.display === 'flex' || modal.style.display === 'block') {
+                    modal.style.display = 'none';
+                    hasModalOpen = true;
+                }
+            });
+
+            // 1. 如果还在旧版图形地图里 (防备用) -> 关掉地图，显示房间
+            if (mapScene && mapScene.style.display !== 'none') {
+                mapScene.style.display = 'none';
+                document.getElementById('scene-room').style.display = 'block';
+                console.log("从图形地图回家");
+            } 
+            // 2. 如果在街景/剧情里 -> 调用 StoryManager 回家
+            else if (streetScene && streetScene.style.display !== 'none') {
+                StoryManager.returnHome(); 
+                console.log("从街景回家");
+            } 
+            // 3. 已经在房间里
+            else {
+                if (hasModalOpen) {
+                    console.log("Home键关闭了所有弹窗");
+                } else {
+                    UIRenderer.log("已经在房间里了。");
+                }
             }
         };
     }

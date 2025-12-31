@@ -1,10 +1,108 @@
 /* src/css/story.css */
 
-/* 剧情发现时的震动效果 */
+/* 写作台整体布局 */
+.desk-layout {
+    width: 900px;
+    height: 700px;
+    background: #fff;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.desk-layout header {
+    background: #5d4037;
+    color: #fff;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* --- 核心：左右分栏布局 --- */
+.layout {
+    display: flex;
+    flex: 1; /* 撑满剩余高度 */
+    overflow: hidden;
+}
+
+/* 左侧栏 (日记列表) */
+.sidebar {
+    width: 250px; /* 固定宽度 */
+    background: #f5f5f5;
+    border-right: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; 
+}
+
+.sidebar-header {
+    padding: 15px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #eee;
+}
+
+/* 日记列表项 */
+.list-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 14px;
+    color: #555;
+}
+
+.list-item:hover {
+    background: #e0e0e0;
+}
+
+.list-item.active {
+    background: #fff;
+    border-left: 4px solid #5d4037;
+    font-weight: bold;
+    color: #333;
+}
+
+/* 右侧主编辑器 */
+.main-editor {
+    flex: 1; /* 占据剩余空间 */
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background: #fff;
+}
+
+#editor-area {
+    flex: 1;
+    width: 100%;
+    border: 1px solid #eee;
+    padding: 15px;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.6;
+    resize: none; 
+    outline: none;
+    box-sizing: border-box;
+}
+
+.editor-footer {
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #999;
+    font-size: 12px;
+}
+
+/* 震动效果 */
 .shake-room {
     animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
 }
-
 @keyframes shake {
     10%, 90% { transform: translate3d(-1px, 0, 0); }
     20%, 80% { transform: translate3d(2px, 0, 0); }
@@ -12,19 +110,16 @@
     40%, 60% { transform: translate3d(4px, 0, 0); }
 }
 
-/* 糖水菠萝日记在列表中的视觉效果 */
+/* 书架特殊效果 */
 .book-item-container[title*="糖水菠萝"] {
-    filter: sepia(0.3) contrast(1.1); /* 泛黄的旧纸感 */
+    filter: sepia(0.3) contrast(1.1);
 }
 
-/* 修改 intro-container 的样式 */
 .intro-container {
-    /* ... 原有属性 ... */
-    background: transparent; /* 允许看到底层 */
+    background: transparent;
     transition: background 0.5s ease;
 }
 
-/* 确保对话框在最上层，但背景可以穿透 */
 .dialogue-box-container {
-    z-index: 10001; /* 高于家具层级 */
+    z-index: 10001; 
 }

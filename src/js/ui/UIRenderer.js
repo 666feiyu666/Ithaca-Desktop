@@ -5,6 +5,7 @@ import { UserData } from '../data/UserData.js';
 import { Binder } from '../logic/Binder.js';
 import { StoryManager } from '../logic/StoryManager.js';    
 import { DragManager } from '../logic/DragManager.js'; 
+import { CityEvent } from '../logic/CityEvent.js';
 import { marked } from '../libs/marked.esm.js';
 
 // 物品数据库
@@ -344,7 +345,11 @@ export const UIRenderer = {
                     document.getElementById('modal-desk').style.display = 'flex';
                     this.renderJournalList();
                 } else if (config.type === 'rug') {
-                    this.toggleMap(true);
+                    const modal = document.getElementById('modal-map-selection');
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        CityEvent.renderSelectionMenu();
+                    }
                 }
             };
             

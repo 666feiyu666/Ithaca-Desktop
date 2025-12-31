@@ -21,12 +21,25 @@ export const IntroScene = {
         const scene = document.getElementById('scene-intro');
         const box = document.getElementById('intro-dialogue-box');
         const btnSkip = document.getElementById('btn-skip-intro');
+        const bgImg = scene.querySelector('.intro-bg');
+        
+        // ✨ 新增：获取房间元素
+        const room = document.getElementById('scene-room');
 
         // 1. 如果是老玩家，直接跳过
         if (UserData.state.hasWatchedIntro) {
             scene.style.display = 'none';
+            // 确保房间是显示的
+            if (room) room.style.display = 'block'; 
             return;
         }
+
+        // 🔴 核心修复：刚开始剧情时，强制隐藏房间！
+        if (room) room.style.display = 'none';
+
+        // 🔴 核心修复：让街景背景完全不透明，并且背景色纯黑
+        scene.style.background = '#000'; 
+        if (bgImg) bgImg.style.opacity = '1'; // 之前 CSS 里可能是 0.8
 
         // 2. 绑定点击事件
         box.onclick = () => this.next();
@@ -34,6 +47,11 @@ export const IntroScene = {
 
         // 3. 开始播放
         console.log("🎬 开场剧情开始：毕业生篇");
+        
+        // 确保场景显示
+        scene.style.display = 'flex';
+        scene.style.opacity = 1;
+
         this.renderLine();
     },
 
@@ -79,6 +97,11 @@ export const IntroScene = {
     // 🎬 剧情结束 -> 引导开始
     endIntro() {
         const scene = document.getElementById('scene-intro');
+        const room = document.getElementById('scene-room'); // 获取房间
+
+        // 🔴 核心修复：转场开始前，先把房间显示出来（在 intro 层底下）
+        // 这样当 intro 淡出时，房间才会浮现出来
+        if (room) room.style.display = 'block';
         
         // 1. 淡出动画
         scene.style.transition = "opacity 1.5s";
@@ -98,12 +121,8 @@ export const IntroScene = {
 
             // B. 延迟一点点，自动打开【装修模式】
             setTimeout(() => {
-                // 强制打开装修模式 (调用 DragManager)
                 DragManager.toggleMode(true);
-                
-                // C. 弹出一个强提示 (既然是新手引导，用 alert 最显眼，或者你可以之后做一个漂亮的提示框)
                 alert("📦 【新手引导】\n\n你看，房间现在是空的。\n\n我已经帮你把行李放在屏幕下方的【物品栏】里了。\n\n试着把它们拖拽到房间里吧！");
-                
             }, 500);
 
         }, 1500);

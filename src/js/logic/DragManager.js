@@ -17,7 +17,25 @@ export const DragManager = {
         const btnOpen = document.getElementById('btn-icon-deco');
         const btnClose = document.getElementById('btn-close-deco');
         
-        if (btnOpen) btnOpen.onclick = () => this.toggleMode(true);
+        // 👇👇👇 修改开始：增加场景检查 👇👇👇
+        if (btnOpen) btnOpen.onclick = () => {
+            const room = document.getElementById('scene-room');
+            
+            // 检查房间是否可见
+            // 如果房间的 display 是 'none'，说明你现在肯定在街景、地图或剧情里
+            if (room && window.getComputedStyle(room).display === 'none') {
+                // 🚫 阻止启动，并给出提示
+                if (typeof UIRenderer !== 'undefined') {
+                    UIRenderer.log("❌ 出门在外，无法装修房间。");
+                } else {
+                    alert("出门在外，无法装修房间！请先回家。");
+                }
+                return; 
+            }
+
+            // ✅ 如果在房间里，才允许启动
+            this.toggleMode(true);
+        };
         if (btnClose) btnClose.onclick = () => this.toggleMode(false);
 
         // 全局鼠标事件监听
