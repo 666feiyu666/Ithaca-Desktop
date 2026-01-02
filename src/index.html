@@ -32,13 +32,39 @@
     </div>
 
     <div class="room-hud">
-        <span>📅 Day <span id="day-display-room">1</span></span>
+        <div id="btn-mailbox" class="hud-item clickable" title="查看信件">
+            <span class="hud-icon">📫</span> 
+            <span class="hud-text">Day <span id="day-display-room">1</span></span>
+            <div id="mail-red-dot" class="red-dot" style="display:none;">!</div>
+        </div>
         
-        <span style="margin-left: 10px;">💧 <span id="ink-display-room">0</span> ml</span>
+        <span class="divider">|</span>
         
-        <span style="margin-left: 10px; padding-left: 10px; border-left: 1px solid #aaa; color: #555;">
-            🖋️ <span id="word-display-room">0</span> 字
-        </span>
+        <div class="hud-item">
+            <span class="hud-icon">💧</span> 
+            <span class="hud-text"><span id="ink-display-room">0</span> ml</span>
+        </div>
+        
+        <span class="divider">|</span>
+
+        <div class="hud-item">
+            <span class="hud-icon">🖋️</span> 
+            <span class="hud-text"><span id="word-display-room">0</span> 字</span>
+        </div>
+    </div>
+
+    <div id="modal-letter" class="modal-overlay">
+        <div class="letter-paper">
+                <div class="letter-header">
+                    <span id="letter-sender" style="font-weight:bold; color:#5d4037;">From: ???</span>
+                    <span id="letter-date" style="color:#999; font-size:12px;">Day 1</span>
+                </div>
+                <h2 id="letter-title" style="margin: 10px 0 20px 0;">标题</h2>
+                <div id="letter-content" class="letter-body"></div>
+                <div class="letter-footer">
+                    <button class="btn-primary" onclick="document.getElementById('modal-letter').style.display='none'">收起信件</button>
+                </div>
+            </div>
     </div>
 
     <div id="decoration-hud" style="display: none;">

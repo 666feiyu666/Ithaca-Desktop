@@ -15,7 +15,8 @@ export const UserData = {
         
         // ✨ 新增：手记本列表
         // 结构: { id: 'nb_xxx', name: '我的小说', icon: 'path/to/img', isDefault: boolean, createdAt: timestamp }
-        notebooks: [] 
+        notebooks: [], 
+        readMails: []   // 已读邮件ID列表
     },
 
     // 初始化
@@ -80,6 +81,20 @@ export const UserData = {
                  this.save();
                  Journal.save();
              }
+        }
+    },
+
+    // ✨ 新增：信箱相关方法
+    hasReadMail(day) {
+        if (!this.state.readMails) this.state.readMails = [];
+        return this.state.readMails.includes(day);
+    },
+
+    markMailAsRead(day) {
+        if (!this.state.readMails) this.state.readMails = [];
+        if (!this.hasReadMail(day)) {
+            this.state.readMails.push(day);
+            this.save();
         }
     },
 

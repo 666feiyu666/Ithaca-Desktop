@@ -1,4 +1,4 @@
-/* src/js/ui/UIRenderer.js */
+/* src/js/ui/UIRenderer.js - 完整版 (含信箱系统) */
 import { Journal } from '../data/Journal.js';
 import { Library } from '../data/Library.js';
 import { UserData } from '../data/UserData.js';
@@ -6,6 +6,7 @@ import { Binder } from '../logic/Binder.js';
 import { StoryManager } from '../logic/StoryManager.js';    
 import { DragManager } from '../logic/DragManager.js'; 
 import { CityEvent } from '../logic/CityEvent.js';
+import { MailManager } from '../logic/MailManager.js'; // ✨ 新增引入
 import { marked } from '../libs/marked.esm.js';
 
 // 物品数据库配置
@@ -31,7 +32,7 @@ export const UIRenderer = {
             this.activeEntryId = all[0].id;
         }
         
-        this.updateStatus();
+        this.updateStatus(); // 这里会触发信箱检查
         this.renderSidebar();
         this.loadActiveEntry();
         this.renderRoomFurniture();
@@ -300,7 +301,6 @@ export const UIRenderer = {
     // 📝 编辑器与工作台
     // ============================================================
 
-    // ✨ 修复：在编辑器区域渲染“归档栏” (Tag Bar)
     renderTagBar(entry) {
         let tagContainer = document.getElementById('entry-tag-bar');
         if (!tagContainer) {
@@ -330,17 +330,13 @@ export const UIRenderer = {
             
             const tag = document.createElement('span');
             
-            // ✨✨✨ 修复核心：判断图标类型 ✨✨✨
             let iconHtml = nb.icon || '📔';
             if (nb.icon && nb.icon.includes('/')) {
-                // 如果路径包含斜杠，认为是图片，渲染 img 标签
-                // 限制图片大小，并设置垂直对齐
                 iconHtml = `<img src="${nb.icon}" style="width:16px; height:16px; object-fit:contain; margin-right:4px;">`;
             }
 
             tag.innerHTML = `${iconHtml}${nb.name}`;
             
-            // 优化样式：使用 flex 保证图片和文字对齐
             tag.style.display = "inline-flex";
             tag.style.alignItems = "center";
             tag.style.fontSize = "12px";
@@ -350,7 +346,6 @@ export const UIRenderer = {
             tag.style.userSelect = "none";
             tag.style.transition = "all 0.2s";
             
-            // 选中样式
             if (isSelected) {
                 tag.style.border = "1px solid #5d4037";
                 tag.style.background = "#5d4037";
@@ -414,35 +409,28 @@ export const UIRenderer = {
     // 4.🔨 工作台 (Workbench)
     // ============================================================
 
-    // ✨ 新增：渲染工作台的“手记本选择器”
     renderWorkbenchNotebookSelector() {
         const selectEl = document.getElementById('workbench-filter-notebook');
         if (!selectEl) return;
 
-        // 记录当前选中的值，防止刷新时重置
         const currentVal = selectEl.value;
 
-        // 清空现有选项（保留第一个“所有记忆”）
         selectEl.innerHTML = `<option value="ALL">📂 所有记忆 (All)</option>`;
         selectEl.innerHTML += `<option value="INBOX_VIRTUAL_ID">📥 收件箱 (Unsorted)</option>`;
 
-        // 遍历生成选项
         UserData.state.notebooks.forEach(nb => {
             const option = document.createElement('option');
             option.value = nb.id;
-            // 如果图标是图片路径，只显示文字名称；如果是emoji，显示emoji+文字
             const iconDisplay = (nb.icon && nb.icon.includes('/')) ? '📔' : nb.icon;
             option.text = `${iconDisplay} ${nb.name}`;
             selectEl.appendChild(option);
         });
 
-        // 恢复选中状态
         if (currentVal) {
             selectEl.value = currentVal;
         }
     },
 
-    // 🔨 修改：渲染素材列表 (支持双重筛选)
     renderWorkbenchList(filterText = "", filterNotebookId = "ALL") {
         const listEl = document.getElementById('workbench-sources');
         if (!listEl) return;
@@ -450,27 +438,21 @@ export const UIRenderer = {
         listEl.innerHTML = "";
         const allEntries = Journal.getAll();
 
-        // --- 核心筛选逻辑 ---
         const filteredEntries = allEntries.filter(entry => {
-            // 1. 文本搜索筛选
             const matchText = !filterText || entry.content.toLowerCase().includes(filterText.toLowerCase());
             
-            // 2. 手记本归属筛选
             let matchNotebook = true;
             if (filterNotebookId === "ALL") {
                 matchNotebook = true;
             } else if (filterNotebookId === "INBOX_VIRTUAL_ID") {
-                // 收件箱：没有标签 或 标签数组为空
                 matchNotebook = (!entry.notebookIds || entry.notebookIds.length === 0);
             } else {
-                // 特定本子：标签数组包含该ID
                 matchNotebook = (entry.notebookIds && entry.notebookIds.includes(filterNotebookId));
             }
 
             return matchText && matchNotebook;
         });
 
-        // --- 渲染结果 ---
         if (filteredEntries.length === 0) {
             listEl.innerHTML = `<div style="color:#999; text-align:center; margin-top:20px;">没有找到相关记忆碎片</div>`;
             return;
@@ -478,8 +460,6 @@ export const UIRenderer = {
         
         filteredEntries.forEach(entry => {
             const btn = document.createElement('button');
-            // ... (样式保持不变) ...
-            // 为了代码简洁，这里略去具体的 style 设置，保留之前的样式即可
             const displayTime = entry.time || ""; 
             const preview = entry.content.substring(0, 15).replace(/\n/g, " ") + "...";
 
@@ -488,7 +468,6 @@ export const UIRenderer = {
                 <div style="font-size:12px; color:#666;">${preview}</div>
             `;
             
-            // 复制之前的样式
             btn.style.display = 'block';
             btn.style.width = '100%';
             btn.style.marginBottom = '8px';
@@ -584,7 +563,7 @@ export const UIRenderer = {
         }
     },
 
-    // --- 6. 更新顶部状态栏 ---
+    // --- 6. 更新顶部状态栏 (含信箱) ---
     updateStatus() {
         const day = UserData.state.day;
         const ink = UserData.state.ink;
@@ -597,6 +576,53 @@ export const UIRenderer = {
         if (roomDayEl) roomDayEl.innerText = day;
         if (roomInkEl) roomInkEl.innerText = ink;
         if (roomWordEl) roomWordEl.innerText = totalWords;
+
+        // ✨ 更新信箱红点状态
+        this.updateMailboxStatus();
+    },
+
+    // ✨✨✨ 新增：信箱状态控制 ✨✨✨
+    updateMailboxStatus() {
+        const newMail = MailManager.checkNewMail();
+        const redDot = document.getElementById('mail-red-dot');
+        const btnMailbox = document.getElementById('btn-mailbox');
+        const iconSpan = btnMailbox ? btnMailbox.querySelector('.hud-icon') : null;
+        
+        if (redDot) {
+            if (newMail) {
+                redDot.style.display = 'flex'; // 显示红点
+                if (iconSpan) iconSpan.innerText = "📬"; // 有信：邮箱打开
+            } else {
+                redDot.style.display = 'none'; // 隐藏红点
+                if (iconSpan) iconSpan.innerText = "📫"; // 无信：邮箱关闭
+            }
+        }
+    },
+
+    // ✨✨✨ 新增：打开信件弹窗 ✨✨✨
+    openLetter(letterData) {
+        const modal = document.getElementById('modal-letter');
+        if (!modal) return;
+
+        if (!letterData) {
+            // 如果没有数据，可能是点击了空信箱，可以弹Toast提示
+            // this.showToast("今天没有新信件");
+            alert("信箱是空的。");
+            return;
+        }
+
+        document.getElementById('letter-sender').innerText = `From: ${letterData.sender}`;
+        document.getElementById('letter-date').innerText = `Day ${letterData.day}`;
+        document.getElementById('letter-title').innerText = letterData.title;
+        document.getElementById('letter-content').innerText = letterData.content;
+        
+        modal.style.display = 'flex';
+        
+        // 标记为已读
+        UserData.markMailAsRead(letterData.day);
+        
+        // 立即更新UI状态 (移除红点)
+        this.updateMailboxStatus();
     },
 
     // --- 7. 日志系统 ---
@@ -796,7 +822,7 @@ export const UIRenderer = {
             slot.className = 'bp-slot';
             slot.title = info.title;
             const img = document.createElement('img');
-            img.src = info.icon || 'assets/images/items/note1.png'; 
+            img.src = info.icon || 'assets/images/item/note1.png'; 
             slot.appendChild(img);
 
             slot.onclick = () => {

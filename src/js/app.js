@@ -1,4 +1,4 @@
-/* src/js/app.js */
+/* src/js/app.js - 完整版 (含信箱系统) */
 
 // 1. 引入所有模块
 import { Journal } from './data/Journal.js';
@@ -11,6 +11,7 @@ import { Shop } from './logic/Shop.js';
 import { DragManager } from './logic/DragManager.js';   
 import { TimeSystem } from './logic/TimeSystem.js';
 import { StoryManager } from './logic/StoryManager.js';
+import { MailManager } from './logic/MailManager.js'; // ✨ 新增引入
 import { UIRenderer } from './ui/UIRenderer.js';
 import { marked } from './libs/marked.esm.js';  
 
@@ -30,6 +31,7 @@ async function init() {
     
     // 数据就绪后，再渲染界面
     // UIRenderer.init 会调用 renderSidebar，动态绑定 + 号按钮事件
+    // 同时 updateStatus 会初始化信箱红点状态
     UIRenderer.init();
     UIRenderer.renderBookshelf();
     
@@ -57,28 +59,9 @@ function bindEvents() {
             // 只有当当前有选中的日记时才保存
             if (UIRenderer.activeEntryId) {
                 Journal.updateEntry(UIRenderer.activeEntryId, editor.value);
-                // 实时刷新左侧列表的字数统计 (如果需要性能优化可暂时关闭)
-                // UIRenderer.renderJournalList(); 
-                // 为了避免打字卡顿，我们可以只在 UIRenderer 里做局部更新，或者只更新当前 DOM
-                // 这里暂时保持原样或注释掉列表刷新，视性能而定
             }
         });
     }
-
-    // 🔴 A2. [已移除] 新建日记按钮 (+)
-    // 原因：按钮的点击事件现在由 UIRenderer.js 中的 renderSidebar 动态接管。
-    // 这样才能确保新建日记时，系统知道当前是在“收件箱”还是“某个手记本”里。
-    /* const btnNewEntry = document.getElementById('btn-new-entry');
-    if (btnNewEntry) {
-        btnNewEntry.onclick = () => {
-            const newEntry = Journal.createNewEntry();
-            UIRenderer.activeEntryId = newEntry.id;
-            UIRenderer.renderJournalList(); 
-            UIRenderer.loadActiveEntry();   
-            UIRenderer.log(`创建了新的空白记录 (${newEntry.time})。`);
-        };
-    }
-    */
 
     // A3. 确认记录按钮 (Confirm & Reward)
     const btnConfirm = document.getElementById('btn-confirm-entry');
@@ -122,8 +105,6 @@ function bindEvents() {
                 UIRenderer.log("🗑️ 撕毁了一页记忆。");
 
                 // 2. 重置 UI：尝试选中剩下日记的第一篇
-                // 注意：这里可能需要根据当前所在的 Notebook 来筛选剩余日记，
-                // 但为了简单，直接设为 null 或者让 UIRenderer 自行处理
                 UIRenderer.activeEntryId = null;
 
                 // 3. 刷新界面
@@ -156,12 +137,8 @@ function bindEvents() {
             // 3. 初始渲染列表
             UIRenderer.renderWorkbenchList("", "ALL");
             
-            // ... (原本的重置书名、封皮逻辑保持不变)
             const titleInput = document.getElementById('manuscript-title-input');
             if (titleInput) titleInput.value = "";
-            
-            // 重置封皮
-            // ...
         };
     }
 
@@ -180,7 +157,6 @@ function bindEvents() {
     }
 
     // B1.5 监听搜索输入 (Search Filter)
-    // 修改原有的监听逻辑，使其包含 notebookId
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const text = e.target.value.trim();
@@ -226,6 +202,8 @@ function bindEvents() {
                 finalTitle = "无题_" + new Date().toLocaleDateString().replace(/\//g, '');
             }
 
+            // 获取当前选中的封皮 (逻辑在 Binder/UI 内部处理，这里简化)
+            const selectedCover = Binder.currentCover || 'assets/images/booksheet/booksheet1.png';
             const result = Binder.publish(finalTitle, selectedCover);
             
             if (result.success) {
@@ -274,7 +252,6 @@ function bindEvents() {
     if (desk) {
         desk.onclick = () => {
             document.getElementById('modal-desk').style.display = 'flex';
-            // 使用新的渲染入口
             UIRenderer.renderSidebar(); 
         };
     }
@@ -314,7 +291,6 @@ function bindEvents() {
     }
 
     // --- E. 阅读器编辑功能 (Reader Edit System) ---
-    
     const btnEditBook = document.getElementById('btn-edit-book');
     if (btnEditBook) {
         btnEditBook.onclick = () => {
@@ -351,7 +327,6 @@ function bindEvents() {
     }
 
     // --- F. 城市与时间系统 (City & Time) ---
-
     const btnPark = document.getElementById('btn-explore-park');
     if (btnPark) {
         btnPark.onclick = () => {
@@ -382,7 +357,28 @@ function bindEvents() {
         };
     }
 
-    // --- 新增：右上角工具栏事件 ---
+    // --- ✨✨✨ H. 信箱系统 (Mailbox System) ✨✨✨ ---
+    // 绑定 HUD 上的信箱按钮 (原 Day 图标)
+    const btnMailbox = document.getElementById('btn-mailbox');
+    if (btnMailbox) {
+        btnMailbox.onclick = () => {
+            // 🔍 调试代码 B：看看点击是否触发
+            console.log("信箱被点击了！"); 
+
+            const newMail = MailManager.checkNewMail();
+            const todayMail = MailManager.getTodayMail();
+            
+            const letterToShow = newMail || todayMail;
+            
+            // 调用 UI 渲染器打开信件弹窗
+            UIRenderer.openLetter(letterToShow);
+        };
+    } else {
+        console.error("❌ 找不到 ID 为 'btn-mailbox' 的元素！");
+    }
+
+
+    // --- 右上角工具栏事件 ---
 
     // 1. 商店 (Shop)
     const btnShop = document.getElementById('btn-icon-shop');
@@ -464,7 +460,8 @@ function bindEvents() {
                     ink: 0,
                     draft: "",
                     inventory: [], 
-                    layout: undefined 
+                    layout: undefined,
+                    readMails: [] // 重置信件状态
                 };
                 
                 await window.ithacaSystem.saveData('user_data.json', JSON.stringify(UserData.state));
@@ -550,7 +547,7 @@ function bindEvents() {
         };
     }
 
-    // --- ✨ 新增：新建手记本弹窗确认按钮 ---
+    // --- 新增：新建手记本弹窗确认按钮 ---
     const btnCreateNotebook = document.getElementById('btn-submit-notebook');
     if (btnCreateNotebook) {
         btnCreateNotebook.onclick = () => {
