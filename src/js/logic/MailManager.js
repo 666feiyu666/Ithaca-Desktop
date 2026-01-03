@@ -55,5 +55,40 @@ export const MailManager = {
             return { day: day, ...letter };
         }
         return null;
+    },
+
+    /**
+     * ✨ 新增：获取信件归档列表
+     * 返回格式：[{ day: 1, title: "...", unlocked: true }, { day: 2, title: "待开发", unlocked: false } ...]
+     */
+    getMailArchive() {
+        const currentDay = UserData.state.day;
+        const list = [];
+        const readMails = UserData.state.readMails || [];
+
+        // 倒序遍历：从今天往前推 (Day N -> Day 1)，这样最新的在最上面
+        for (let d = currentDay; d >= 1; d--) {
+            const letter = this.letters[d];
+            const isRead = readMails.includes(d);
+            
+            if (letter) {
+                list.push({
+                    day: d,
+                    title: letter.title,
+                    sender: letter.sender,
+                    content: letter.content,
+                    type: 'letter',
+                    isRead: isRead
+                });
+            } else {
+                // 空窗期
+                list.push({
+                    day: d,
+                    title: "（待开发...）", // 这里显示待开发
+                    type: 'empty'
+                });
+            }
+        }
+        return list;
     }
 };

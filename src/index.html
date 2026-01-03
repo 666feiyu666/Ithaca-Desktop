@@ -53,18 +53,36 @@
         </div>
     </div>
 
-    <div id="modal-letter" class="modal-overlay">
-        <div class="letter-paper">
-                <div class="letter-header">
-                    <span id="letter-sender" style="font-weight:bold; color:#5d4037;">From: ???</span>
-                    <span id="letter-date" style="color:#999; font-size:12px;">Day 1</span>
+    <div id="modal-mailbox" class="modal-overlay full-screen-modal">
+        <div class="modal-content mailbox-layout">
+            <header>
+                <h2>📬 信箱</h2>
+                <span style="font-size: 12px; color: #666; margin-left: 10px;">收纳往日的回忆</span>
+                <button class="btn-close-modal" onclick="closeModal('modal-mailbox')">❌ 关闭</button>
+            </header>
+            
+            <div id="mailbox-grid" class="mailbox-grid">
                 </div>
-                <h2 id="letter-title" style="margin: 10px 0 20px 0;">标题</h2>
-                <div id="letter-content" class="letter-body"></div>
-                <div class="letter-footer">
-                    <button class="btn-primary" onclick="document.getElementById('modal-letter').style.display='none'">收起信件</button>
+        </div>
+    </div>
+
+    <div id="modal-letter" class="modal-overlay">
+        <div class="letter-ui-container">
+            <div class="letter-content-area">
+                <div class="letter-meta">
+                    <span id="letter-view-date">Day 1</span>
+                    <span id="letter-view-sender">From: ???</span>
+                </div>
+                <h3 id="letter-view-title">标题</h3>
+                <div class="letter-scroll-box">
+                    <p id="letter-view-body">...</p>
                 </div>
             </div>
+            
+            <div class="letter-actions">
+                <button class="btn-primary" onclick="document.getElementById('modal-letter').style.display='none'">收起信件</button>
+            </div>
+        </div>
     </div>
 
     <div id="decoration-hud" style="display: none;">

@@ -1,4 +1,4 @@
-/* src/js/ui/UIRenderer.js - 完整版 (含信箱系统) */
+/* src/js/ui/UIRenderer.js - 完整版 (含信箱、手记本管理、仓库系统) */
 import { Journal } from '../data/Journal.js';
 import { Library } from '../data/Library.js';
 import { UserData } from '../data/UserData.js';
@@ -6,7 +6,7 @@ import { Binder } from '../logic/Binder.js';
 import { StoryManager } from '../logic/StoryManager.js';    
 import { DragManager } from '../logic/DragManager.js'; 
 import { CityEvent } from '../logic/CityEvent.js';
-import { MailManager } from '../logic/MailManager.js'; // ✨ 新增引入
+import { MailManager } from '../logic/MailManager.js'; 
 import { marked } from '../libs/marked.esm.js';
 
 // 物品数据库配置
@@ -32,17 +32,18 @@ export const UIRenderer = {
             this.activeEntryId = all[0].id;
         }
         
-        this.updateStatus(); // 这里会触发信箱检查
+        this.updateStatus(); // 触发信箱检查
         this.renderSidebar();
         this.loadActiveEntry();
         this.renderRoomFurniture();
     },
 
     // ============================================================
-    // 📂 侧边栏逻辑
+    // 📂 侧边栏逻辑 (Sidebar System)
     // ============================================================
 
     renderSidebar() {
+        // 如果没有选中特定的本子，显示归档目录；否则显示日记列表
         if (!this.currentNotebookId) {
             this.renderNotebookList();
         } else {
@@ -50,7 +51,7 @@ export const UIRenderer = {
         }
     },
 
-    // --- Level 1: 渲染手记本列表 ---
+    // --- Level 1: 渲染手记本目录 ---
     renderNotebookList() {
         const listEl = document.getElementById('journal-list');
         const headerEl = document.querySelector('.sidebar-header h4');
@@ -61,26 +62,71 @@ export const UIRenderer = {
         
         if (headerEl) headerEl.innerText = "📂 归档系统";
         
-        // 渲染收件箱
         const allEntries = Journal.getAll();
-        const inboxCount = allEntries.filter(e => !e.notebookIds || e.notebookIds.length === 0).length;
+
+        // ==========================================
+        // 1. 渲染仓库 (System: Warehouse / All Memories)
+        //    显示所有日记的总入口
+        // ==========================================
+        const totalCount = allEntries.length;
         
-        const inboxDiv = document.createElement('div');
-        inboxDiv.className = 'list-item notebook-folder';
-        inboxDiv.style.borderLeft = "4px solid #d84315"; 
-        inboxDiv.innerHTML = `
-            <span class="nb-icon-emoji">📥</span>
-            <span class="nb-name">收件箱 (未归类)</span>
-            <span class="nb-count">${inboxCount}</span>
+        const repoDiv = document.createElement('div');
+        repoDiv.className = 'list-item notebook-folder';
+        repoDiv.style.borderLeft = "4px solid #4e342e"; // 深褐色代表仓库
+        repoDiv.style.display = "flex"; 
+        repoDiv.style.justifyContent = "space-between";
+        repoDiv.style.alignItems = "center";
+
+        repoDiv.innerHTML = `
+            <div style="display:flex; align-items:center; overflow:hidden;">
+                <span class="nb-icon-emoji">💾</span>
+                <span class="nb-name">仓库</span>
+            </div>
+            <span class="nb-count">${totalCount}</span>
         `;
-        inboxDiv.onclick = () => {
-            this.currentNotebookId = 'INBOX_VIRTUAL_ID';
+        repoDiv.onclick = () => {
+            this.currentNotebookId = 'REPO_ALL_ID'; // 特殊 ID：仓库
             this.renderSidebar();
         };
-        listEl.appendChild(inboxDiv);
+        listEl.appendChild(repoDiv);
 
-        // 渲染手记本
+        // ==========================================
+        // 2. 渲染日常碎片 (System: Daily Fragments)
+        // ==========================================
+        const dailyCount = allEntries.filter(e => {
+            if (e.notebookIds && Array.isArray(e.notebookIds)) {
+                return e.notebookIds.includes('nb_daily');
+            }
+            return e.notebookId === 'nb_daily';
+        }).length;
+
+        const dailyDiv = document.createElement('div');
+        dailyDiv.className = 'list-item notebook-folder';
+        dailyDiv.style.borderLeft = "4px solid #ffa000"; // 琥珀色
+        dailyDiv.style.display = "flex";
+        dailyDiv.style.justifyContent = "space-between";
+        dailyDiv.style.alignItems = "center";
+
+        dailyDiv.innerHTML = `
+            <div style="display:flex; align-items:center; overflow:hidden;">
+                <span class="nb-icon-emoji">🧩</span>
+                <span class="nb-name">日常碎片</span>
+            </div>
+            <span class="nb-count">${dailyCount}</span>
+        `;
+        dailyDiv.onclick = () => {
+            this.currentNotebookId = 'nb_daily';
+            this.renderSidebar();
+        };
+        listEl.appendChild(dailyDiv);
+
+        // ==========================================
+        // 3. 渲染用户自定义手记本
+        // ==========================================
         UserData.state.notebooks.forEach(nb => {
+            // 跳过系统预设 ID
+            if (nb.id === 'nb_inbox' || nb.id === 'nb_daily') return;
+
             const count = allEntries.filter(e => {
                 if (e.notebookIds && Array.isArray(e.notebookIds)) {
                     return e.notebookIds.includes(nb.id);
@@ -90,8 +136,11 @@ export const UIRenderer = {
             
             const div = document.createElement('div');
             div.className = 'list-item notebook-folder'; 
+            div.style.position = 'relative'; 
+            div.style.display = "flex";
+            div.style.justifyContent = "space-between";
+            div.style.alignItems = "center";
             
-            // 图标判断逻辑
             let iconHtml = '';
             if (nb.icon && nb.icon.includes('/')) {
                 iconHtml = `<img src="${nb.icon}" class="nb-icon-img">`;
@@ -99,12 +148,68 @@ export const UIRenderer = {
                 iconHtml = `<span class="nb-icon-emoji">${nb.icon || '📔'}</span>`;
             }
 
-            div.innerHTML = `
-                ${iconHtml}
-                <span class="nb-name">${nb.name}</span>
-                <span class="nb-count">${count}</span>
-            `;
+            const leftContent = document.createElement('div');
+            leftContent.style.cssText = "display:flex; align-items:center; flex:1; overflow:hidden; margin-right:10px;";
+            leftContent.innerHTML = `${iconHtml}<span class="nb-name">${nb.name}</span>`;
             
+            const countSpan = document.createElement('span');
+            countSpan.className = 'nb-count';
+            countSpan.innerText = count;
+
+            // --- 操作栏 (重命名/删除) ---
+            const actionsDiv = document.createElement('div');
+            actionsDiv.style.cssText = "display:none; gap:5px;";
+            
+            // ✏️ 重命名按钮
+            const btnRename = document.createElement('span');
+            btnRename.innerText = "✏️";
+            btnRename.title = "重命名";
+            btnRename.style.cssText = "cursor:pointer; font-size:14px; opacity:0.7;";
+            btnRename.onmouseover = () => btnRename.style.opacity = 1;
+            btnRename.onmouseout = () => btnRename.style.opacity = 0.7;
+            btnRename.onclick = (e) => {
+                e.stopPropagation(); 
+                // 调用自定义输入弹窗
+                this.showNotebookInputModal('rename', nb.id, nb.name);
+            };
+
+            // 🗑️ 删除按钮
+            const btnDelete = document.createElement('span');
+            btnDelete.innerText = "🗑️";
+            btnDelete.title = "删除手记本";
+            btnDelete.style.cssText = "cursor:pointer; font-size:14px; opacity:0.7;";
+            btnDelete.onmouseover = () => btnDelete.style.opacity = 1;
+            btnDelete.onmouseout = () => btnDelete.style.opacity = 0.7;
+            btnDelete.onclick = (e) => {
+                e.stopPropagation(); 
+                if (confirm(`确定要删除《${nb.name}》吗？\n\n注意：里面的日记不会被删除，它们仍会保留在“所有记忆”中。`)) {
+                    if (UserData.deleteNotebook(nb.id)) {
+                        this.renderNotebookList(); 
+                    } else {
+                        alert("无法删除此手记本（可能是默认项）。");
+                    }
+                }
+            };
+
+            actionsDiv.appendChild(btnRename);
+            actionsDiv.appendChild(btnDelete);
+
+            div.appendChild(leftContent);
+            div.appendChild(countSpan);
+            div.appendChild(actionsDiv);
+            
+            // 悬停显示操作栏
+            div.onmouseenter = () => {
+                countSpan.style.display = 'none';
+                actionsDiv.style.display = 'flex';
+                div.style.background = '#fff8e1';
+            };
+            div.onmouseleave = () => {
+                countSpan.style.display = 'inline-block';
+                actionsDiv.style.display = 'none';
+                div.style.background = '';
+            };
+
             div.onclick = () => {
                 this.currentNotebookId = nb.id; 
                 this.renderSidebar();
@@ -113,7 +218,7 @@ export const UIRenderer = {
             listEl.appendChild(div);
         });
 
-        // 底部新建按钮
+        // 4. 底部新建按钮
         const createBtn = document.createElement('div');
         createBtn.className = 'list-item';
         createBtn.style.textAlign = 'center';
@@ -123,17 +228,17 @@ export const UIRenderer = {
         createBtn.style.cursor = 'pointer';
         createBtn.innerText = "+ 新建手记本";
         createBtn.onclick = () => {
-             this.showCreateNotebookModal();
+             this.showNotebookInputModal('create');
         };
         listEl.appendChild(createBtn);
 
-        // 顶部加号按钮
+        // 5. 顶部加号逻辑 (默认新建，归入收件箱/未分类)
         if (addBtn) {
-            addBtn.title = "新建日记 (进入收件箱)";
+            addBtn.title = "新建日记";
             addBtn.onclick = () => {
                 const newEntry = Journal.createNewEntry(); 
                 this.activeEntryId = newEntry.id;
-                this.currentNotebookId = 'INBOX_VIRTUAL_ID'; 
+                this.currentNotebookId = 'INBOX_VIRTUAL_ID'; // 临时跳到收件箱视角查看新日记
                 this.renderSidebar();
                 this.loadActiveEntry();
                 const editor = document.getElementById('editor-area');
@@ -142,14 +247,20 @@ export const UIRenderer = {
             };
         }
     },
-
-    // 显示新建手记本弹窗
-    showCreateNotebookModal() {
-        const existing = document.getElementById('dynamic-modal-create-notebook');
+    
+   // ✨ 通用手记本输入弹窗 (解决 Electron 不支持 prompt 问题)
+    showNotebookInputModal(mode = 'create', targetId = null, currentName = '') {
+        const existing = document.getElementById('dynamic-modal-input');
         if (existing) existing.remove();
 
+        const isRename = (mode === 'rename');
+        const titleText = isRename ? "重命名手记本" : "新建手记本";
+        const subTitleText = isRename ? "给它换个新名字" : "为你的新想法建一个家";
+        const btnText = isRename ? "保存修改" : "创建";
+        const inputValue = isRename ? currentName : "";
+        
         const overlay = document.createElement('div');
-        overlay.id = 'dynamic-modal-create-notebook';
+        overlay.id = 'dynamic-modal-input';
         overlay.className = 'modal-overlay'; 
         overlay.style.display = 'flex'; 
         overlay.style.zIndex = '9999';
@@ -161,48 +272,62 @@ export const UIRenderer = {
         content.style.background = '#fff';
         content.style.padding = '20px';
         content.style.borderRadius = '8px';
-        content.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+        content.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
+        content.style.border = '2px solid #5d4037';
 
         content.innerHTML = `
-            <h3 style="margin-top:0; color:#5d4037;">新建手记本</h3>
-            <p style="font-size:12px; color:#888;">为你的新想法建一个家</p>
-            <input type="text" id="notebook-name-input" placeholder="例如：关于她的梦..." 
-                   style="width:100%; padding:10px; margin:15px 0; border:1px solid #ddd; border-radius:4px; box-sizing:border-box;">
+            <h3 style="margin-top:0; color:#5d4037;">${titleText}</h3>
+            <p style="font-size:12px; color:#888; margin-bottom:15px;">${subTitleText}</p>
+            
+            <input type="text" id="notebook-input-field" value="${inputValue}" placeholder="请输入名称..." 
+                   style="width:100%; padding:10px; margin-bottom:20px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; font-size:14px;">
+            
             <div style="display:flex; justify-content:flex-end; gap:10px;">
-                <button id="btn-cancel-nb" style="padding:6px 12px; cursor:pointer; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; color:#333;">取消</button>
-                <button id="btn-confirm-nb" style="padding:6px 12px; cursor:pointer; background:#5d4037; color:white; border:none; border-radius:4px;">创建</button>
+                <button id="btn-cancel-input" style="padding:6px 12px; cursor:pointer; background:#fff; border:1px solid #ccc; border-radius:4px; color:#333;">取消</button>
+                <button id="btn-confirm-input" style="padding:6px 12px; cursor:pointer; background:#5d4037; color:white; border:none; border-radius:4px;">${btnText}</button>
             </div>
         `;
 
         overlay.appendChild(content);
         document.body.appendChild(overlay);
 
-        const input = content.querySelector('#notebook-name-input');
-        const btnCancel = content.querySelector('#btn-cancel-nb');
-        const btnConfirm = content.querySelector('#btn-confirm-nb');
+        const input = content.querySelector('#notebook-input-field');
+        const btnCancel = content.querySelector('#btn-cancel-input');
+        const btnConfirm = content.querySelector('#btn-confirm-input');
 
         const close = () => overlay.remove();
-        const confirm = () => {
+        
+        const confirmAction = () => {
             const name = input.value.trim();
-            if (name) {
-                UserData.createNotebook(name);
-                this.renderSidebar();
-                this.log(`📂 创建了新手记本：《${name}》`);
-                close();
-            } else {
-                alert("手记本名称不能为空");
+            if (!name) {
+                alert("名称不能为空");
+                return;
             }
+
+            if (isRename) {
+                UserData.renameNotebook(targetId, name);
+                this.renderNotebookList();
+                this.log(`✏️ 手记本重命名为：《${name}》`);
+            } else {
+                UserData.createNotebook(name);
+                this.renderSidebar(); 
+                this.log(`📂 创建了新手记本：《${name}》`);
+            }
+            close();
         };
 
         btnCancel.onclick = close;
-        btnConfirm.onclick = confirm;
+        btnConfirm.onclick = confirmAction;
         
         input.onkeydown = (e) => {
-            if (e.key === 'Enter') confirm();
+            if (e.key === 'Enter') confirmAction();
             if (e.key === 'Escape') close();
         };
 
-        setTimeout(() => input.focus(), 50);
+        setTimeout(() => {
+            input.focus();
+            if(isRename) input.select();
+        }, 50);
     },
 
     // --- Level 2: 渲染日记列表 ---
@@ -217,7 +342,11 @@ export const UIRenderer = {
         let entries = [];
         let title = "";
 
-        if (notebookId === 'INBOX_VIRTUAL_ID') {
+        // 根据 ID 类型筛选日记
+        if (notebookId === 'REPO_ALL_ID') {
+            title = "💾 所有记忆";
+            entries = Journal.getAll(); // 获取全部
+        } else if (notebookId === 'INBOX_VIRTUAL_ID') {
             title = "📥 收件箱";
             entries = Journal.getAll().filter(e => !e.notebookIds || e.notebookIds.length === 0);
         } else {
@@ -231,20 +360,22 @@ export const UIRenderer = {
             });
         }
 
+        // 更新头部标题和返回按钮
         if (headerEl) {
             headerEl.innerHTML = `<span id="btn-back-level" class="nav-back-btn">⬅️</span> ${title}`;
             const backBtn = document.getElementById('btn-back-level');
             if(backBtn) {
                 backBtn.onclick = (e) => {
                     e.stopPropagation(); 
-                    this.currentNotebookId = null; 
+                    this.currentNotebookId = null; // 返回上一级
                     this.renderSidebar();
                 };
             }
         }
 
+        // 更新右上角加号按钮的功能
         if (addBtn) {
-            if (notebookId === 'INBOX_VIRTUAL_ID') {
+            if (notebookId === 'REPO_ALL_ID' || notebookId === 'INBOX_VIRTUAL_ID') {
                 addBtn.title = "新建日记";
                 addBtn.onclick = () => {
                     const newEntry = Journal.createNewEntry();
@@ -256,7 +387,7 @@ export const UIRenderer = {
                 addBtn.title = "在此手记本中新建";
                 addBtn.onclick = () => {
                     const newEntry = Journal.createNewEntry();
-                    Journal.toggleNotebook(newEntry.id, notebookId);
+                    Journal.toggleNotebook(newEntry.id, notebookId); // 自动归入当前本子
                     
                     this.activeEntryId = newEntry.id;
                     this.renderSidebar();
@@ -581,48 +712,100 @@ export const UIRenderer = {
         this.updateMailboxStatus();
     },
 
-    // ✨✨✨ 新增：信箱状态控制 ✨✨✨
+    // 1. 更新 HUD 按钮逻辑
     updateMailboxStatus() {
         const newMail = MailManager.checkNewMail();
         const redDot = document.getElementById('mail-red-dot');
         const btnMailbox = document.getElementById('btn-mailbox');
         const iconSpan = btnMailbox ? btnMailbox.querySelector('.hud-icon') : null;
         
+        if (btnMailbox) {
+            // 点击总是打开目录
+            btnMailbox.onclick = () => this.openMailboxDirectory();
+        }
+
         if (redDot) {
             if (newMail) {
-                redDot.style.display = 'flex'; // 显示红点
-                if (iconSpan) iconSpan.innerText = "📬"; // 有信：邮箱打开
+                redDot.style.display = 'flex';
+                if (iconSpan) iconSpan.innerText = "📬"; 
             } else {
-                redDot.style.display = 'none'; // 隐藏红点
-                if (iconSpan) iconSpan.innerText = "📫"; // 无信：邮箱关闭
+                redDot.style.display = 'none';
+                if (iconSpan) iconSpan.innerText = "📭"; 
             }
         }
     },
 
-    // ✨✨✨ 新增：打开信件弹窗 ✨✨✨
-    openLetter(letterData) {
+    // 2. 打开信箱目录 (书架视图)
+    openMailboxDirectory() {
+        // 关闭其他
+        this._closeAllModals(); 
+        
+        const modal = document.getElementById('modal-mailbox');
+        const grid = document.getElementById('mailbox-grid');
+        
+        if (!modal || !grid) return;
+
+        grid.innerHTML = ""; // 清空旧数据
+        const archive = MailManager.getMailArchive(); // 获取列表
+
+        archive.forEach(item => {
+            const el = document.createElement('div');
+            el.className = 'mail-grid-item';
+            el.style.position = 'relative'; // 方便定位 NEW 标签
+
+            if (item.type === 'letter') {
+                if (!item.isRead) el.classList.add('unread');
+                
+                // 简单的信封图标，如果以后你有 envelope.png 可以换成 <img src="...">
+                el.innerHTML = `
+                    <div class="mail-icon">📩</div>
+                    <div class="mail-title">${item.title}</div>
+                    <div class="mail-day">Day ${item.day}</div>
+                `;
+                
+                // 点击 -> 打开具体的信 (letter.png 界面)
+                el.onclick = () => {
+                    this.openLetterDetail(item);
+                };
+            } else {
+                // 待开发 / 空
+                el.classList.add('locked');
+                el.innerHTML = `
+                    <div class="mail-icon" style="filter:grayscale(1); opacity:0.3;">📭</div>
+                    <div class="mail-title" style="color:#ccc;">......</div>
+                    <div class="mail-day">Day ${item.day}</div>
+                `;
+            }
+            grid.appendChild(el);
+        });
+
+        modal.style.display = 'flex';
+    },
+
+    // 3. 打开单封信详情 (Letter UI)
+    openLetterDetail(letterData) {
         const modal = document.getElementById('modal-letter');
         if (!modal) return;
 
-        if (!letterData) {
-            // 如果没有数据，可能是点击了空信箱，可以弹Toast提示
-            // this.showToast("今天没有新信件");
-            alert("信箱是空的。");
-            return;
-        }
+        // 填充内容
+        document.getElementById('letter-view-date').innerText = `Day ${letterData.day}`;
+        document.getElementById('letter-view-sender').innerText = letterData.sender;
+        document.getElementById('letter-view-title').innerText = letterData.title;
+        document.getElementById('letter-view-body').innerHTML = letterData.content.replace(/\n/g, '<br>');
 
-        document.getElementById('letter-sender').innerText = `From: ${letterData.sender}`;
-        document.getElementById('letter-date').innerText = `Day ${letterData.day}`;
-        document.getElementById('letter-title').innerText = letterData.title;
-        document.getElementById('letter-content').innerText = letterData.content;
-        
+        // 显示阅读界面
         modal.style.display = 'flex';
-        
+
         // 标记为已读
-        UserData.markMailAsRead(letterData.day);
-        
-        // 立即更新UI状态 (移除红点)
-        this.updateMailboxStatus();
+        if (!UserData.hasReadMail(letterData.day)) {
+            UserData.markMailAsRead(letterData.day);
+            this.updateMailboxStatus(); // 更新红点
+            this.openMailboxDirectory(); // 后台刷新一下目录状态（把NEW去掉），这样关闭信纸时看到的是新的状态
+        }
+    },
+
+    _closeAllModals() {
+        document.querySelectorAll('.modal-overlay').forEach(el => el.style.display = 'none');
     },
 
     // --- 7. 日志系统 ---
@@ -718,7 +901,7 @@ export const UIRenderer = {
                     }
                 } else if (config.type === 'desk') {
                     document.getElementById('modal-desk').style.display = 'flex';
-                    this.renderJournalList();
+                    this.renderSidebar(); // ✨ 修正：点击桌子打开时渲染侧边栏
                 } else if (config.type === 'rug') {
                     const modal = document.getElementById('modal-map-selection');
                     if (modal) {
