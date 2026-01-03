@@ -11,7 +11,6 @@ import { Shop } from './logic/Shop.js';
 import { DragManager } from './logic/DragManager.js';   
 import { TimeSystem } from './logic/TimeSystem.js';
 import { StoryManager } from './logic/StoryManager.js';
-import { MailManager } from './logic/MailManager.js'; // ✨ 新增引入
 import { UIRenderer } from './ui/UIRenderer.js';
 import { marked } from './libs/marked.esm.js';  
 
@@ -356,27 +355,6 @@ function bindEvents() {
             alert("已保存进度。晚安，明天见！(时间将随现实流逝)");
         };
     }
-
-    // // --- ✨✨✨ H. 信箱系统 (Mailbox System) ✨✨✨ ---
-    // // 绑定 HUD 上的信箱按钮 (原 Day 图标)
-    // const btnMailbox = document.getElementById('btn-mailbox');
-    // if (btnMailbox) {
-    //     btnMailbox.onclick = () => {
-    //         // 🔍 调试代码 B：看看点击是否触发
-    //         console.log("信箱被点击了！"); 
-
-    //         const newMail = MailManager.checkNewMail();
-    //         const todayMail = MailManager.getTodayMail();
-            
-    //         const letterToShow = newMail || todayMail;
-            
-    //         // 调用 UI 渲染器打开信件弹窗
-    //         UIRenderer.openLetter(letterToShow);
-    //     };
-    // } else {
-    //     console.error("❌ 找不到 ID 为 'btn-mailbox' 的元素！");
-    // }
-
 
     // --- 右上角工具栏事件 ---
 
