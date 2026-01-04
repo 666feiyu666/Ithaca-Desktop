@@ -737,7 +737,6 @@ export const UIRenderer = {
 
     // 2. 打开信箱目录 (书架视图)
     openMailboxDirectory() {
-        // 关闭其他
         this._closeAllModals(); 
         
         const modal = document.getElementById('modal-mailbox');
@@ -745,37 +744,39 @@ export const UIRenderer = {
         
         if (!modal || !grid) return;
 
-        grid.innerHTML = ""; // 清空旧数据
-        const archive = MailManager.getMailArchive(); // 获取列表
+        grid.innerHTML = ""; 
+        const archive = MailManager.getMailArchive(); 
 
         archive.forEach(item => {
             const el = document.createElement('div');
             el.className = 'mail-grid-item';
-            el.style.position = 'relative'; // 方便定位 NEW 标签
-
-            if (item.type === 'letter') {
+            
+            // 构建内部 HTML：
+            // 1. 背景图通过 CSS background-image 处理了，这里不需要 img 标签
+            // 2. 我们把标题和日期包在一个 info-box 里，放在底部
+            
+            let titleText = item.title;
+            let dayText = `Day ${item.day}`;
+            
+            if (item.type !== 'letter') {
+                el.classList.add('locked');
+                titleText = "???";
+            } else {
                 if (!item.isRead) el.classList.add('unread');
                 
-                // 简单的信封图标，如果以后你有 envelope.png 可以换成 <img src="...">
-                el.innerHTML = `
-                    <div class="mail-icon">📩</div>
-                    <div class="mail-title">${item.title}</div>
-                    <div class="mail-day">Day ${item.day}</div>
-                `;
-                
-                // 点击 -> 打开具体的信 (letter.png 界面)
                 el.onclick = () => {
                     this.openLetterDetail(item);
                 };
-            } else {
-                // 待开发 / 空
-                el.classList.add('locked');
-                el.innerHTML = `
-                    <div class="mail-icon" style="filter:grayscale(1); opacity:0.3;">📭</div>
-                    <div class="mail-title" style="color:#ccc;">......</div>
-                    <div class="mail-day">Day ${item.day}</div>
-                `;
             }
+
+            // ✨ 新的结构：只放文字标签
+            el.innerHTML = `
+                <div class="mail-info-box">
+                    <div class="mail-title">${titleText}</div>
+                    <div class="mail-day">${dayText}</div>
+                </div>
+            `;
+            
             grid.appendChild(el);
         });
 
