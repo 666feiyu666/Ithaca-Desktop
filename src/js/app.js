@@ -1,4 +1,4 @@
-/* src/js/app.js - 完整版 (含信箱系统) */
+/* src/js/app.js */
 
 // 1. 引入所有模块
 import { Journal } from './data/Journal.js';

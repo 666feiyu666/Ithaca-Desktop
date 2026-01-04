@@ -28,6 +28,18 @@ export const UserData = {
 
         // --- 1. 基础数据兼容性修补 ---
         if (!this.state.inventory) this.state.inventory = [];
+
+        // 🛡️【新增修复】防止老玩家重复触发开场剧情
+        // 逻辑：如果已经不是第一天了，或者已经有墨水积累了，说明肯定看过剧情了
+        if (typeof this.state.hasWatchedIntro === 'undefined') {
+            if (this.state.day > 1 || this.state.ink > 0 || this.state.totalWords > 0) {
+                console.log("检测到老存档，自动标记为已看剧情");
+                this.state.hasWatchedIntro = true;
+            } else {
+                // 确实是纯新号
+                this.state.hasWatchedIntro = false;
+            }
+        }
         
         // 新手礼包/房间重置检测
         if (!this.state.layout) {
