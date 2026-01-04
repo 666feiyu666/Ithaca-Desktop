@@ -18,41 +18,26 @@ export const IntroScene = {
     timer: null,
 
     init() {
-        const scene = document.getElementById('scene-intro');
-        const box = document.getElementById('intro-dialogue-box');
-        const btnSkip = document.getElementById('btn-skip-intro');
-        const bgImg = scene.querySelector('.intro-bg');
-        
-        // ✨ 新增：获取房间元素
-        const room = document.getElementById('scene-room');
+    const scene = document.getElementById('scene-intro');
+    const room = document.getElementById('scene-room');
+    
+    // 1. 如果已经看过剧情，直接确保场景隐藏，房间显示
+    if (UserData.state.hasWatchedIntro) {
+        scene.style.display = 'none'; // 确保万无一失
+        if (room) room.style.display = 'block'; 
+        return;
+    }
 
-        // 1. 如果是老玩家，直接跳过
-        if (UserData.state.hasWatchedIntro) {
-            scene.style.display = 'none';
-            // 确保房间是显示的
-            if (room) room.style.display = 'block'; 
-            return;
-        }
+    // 2. 只有确实需要播放剧情时，才进行 DOM 操作显示
+    if (room) room.style.display = 'none';
+    scene.style.display = 'flex'; // 此时再显示
+    scene.style.opacity = 1;
+    scene.style.background = '#000'; 
+    
+    const bgImg = scene.querySelector('.intro-bg');
+    if (bgImg) bgImg.style.opacity = '1';
 
-        // 🔴 核心修复：刚开始剧情时，强制隐藏房间！
-        if (room) room.style.display = 'none';
-
-        // 🔴 核心修复：让街景背景完全不透明，并且背景色纯黑
-        scene.style.background = '#000'; 
-        if (bgImg) bgImg.style.opacity = '1'; // 之前 CSS 里可能是 0.8
-
-        // 2. 绑定点击事件
-        box.onclick = () => this.next();
-        btnSkip.onclick = () => this.endIntro();
-
-        // 3. 开始播放
-        console.log("🎬 开场剧情开始：毕业生篇");
-        
-        // 确保场景显示
-        scene.style.display = 'flex';
-        scene.style.opacity = 1;
-
-        this.renderLine();
+    this.renderLine();
     },
 
     next() {

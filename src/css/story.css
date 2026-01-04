@@ -184,3 +184,14 @@
 .nav-back-btn:hover {
     background: #ddd;
 }
+
+#scene-intro {
+    display: none; /* 初始状态设为 none，禁止任何闪现 */
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000;
+}
