@@ -1,320 +1,96 @@
-/* src/js/ui/UIRenderer.js */
+/* src/js/ui/UIRenderer.js - The Facade (指挥官) */
+import { UserData } from '../data/UserData.js';
+import { StoryManager } from '../logic/StoryManager.js';
 import { SidebarRenderer } from './SidebarRenderer.js';
 import { RoomRenderer } from './RoomRenderer.js';
+import { HUDRenderer } from './HUDRenderer.js';
+import { BookshelfRenderer } from './BookshelfRenderer.js';
+import { WorkbenchRenderer } from './WorkbenchRenderer.js';
 import { ModalManager } from './ModalManager.js';
-import { UserData } from '../data/UserData.js';
-import { MailManager } from '../logic/MailManager.js';
-import { Library } from '../data/Library.js';
-import { StoryManager } from '../logic/StoryManager.js';
-import { marked } from '../libs/marked.esm.js';
 
 export const UIRenderer = {
-    activeEntryId: null,
-    currentBookId: null, // 记录当前阅读的书籍ID
-
+    // ================= 初始化 =================
     init() {
-        // 1. 初始化弹窗管理
+        console.log("正在初始化 UI 子系统...");
+
+        // 1. 初始化各个子模块
         ModalManager.init();
-        
-        // 2. 初始化侧边栏和房间渲染
+        HUDRenderer.init();
         SidebarRenderer.init();
         RoomRenderer.init();
+        BookshelfRenderer.init();
+        WorkbenchRenderer.init();
 
-        // 3. 首次更新状态（墨水、字数、信箱）
-        this.updateStatus();
+        // 2. 绑定全局场景切换事件 (如：回家)
+        this.bindGlobalEvents();
+
+        // 3. 初始渲染
+        this.updateStatus(); // 刷新 HUD
+        SidebarRenderer.render();
+        RoomRenderer.render();
     },
 
-    // ============================================================
-    // 代理旧代码中的方法，保持向后兼容 (让 app.js 不需要大规模改动)
-    // ============================================================
-    renderSidebar() { SidebarRenderer.render(); },
-    renderRoomFurniture() { RoomRenderer.render(); },
-    loadActiveEntry() { SidebarRenderer.loadActiveEntry(); },
-    updateConfirmButtonState(entry) { SidebarRenderer.updateConfirmButtonState(entry); },
-
-    // ============================================================
-    // 状态与 HUD 逻辑
-    // ============================================================
+    // ================= 全局 API =================
+    
+    // 供各个模块调用，统一刷新状态 (墨水、日期、信箱红点)
     updateStatus() {
-        const { day, ink, totalWords } = UserData.state;
-        const els = {
-            day: document.getElementById('day-display-room'),
-            ink: document.getElementById('ink-display-room'),
-            word: document.getElementById('word-display-room')
-        };
-        if (els.day) els.day.innerText = day;
-        if (els.ink) els.ink.innerText = ink;
-        if (els.word) els.word.innerText = totalWords || 0;
-
-        this.updateMailboxStatus();
+        HUDRenderer.updateAll();
     },
 
-    // 修复：信箱红点显示与点击事件绑定
-    updateMailboxStatus() {
-        const newMail = MailManager.checkNewMail();
-        const redDot = document.getElementById('mail-red-dot');
-        const btnMailbox = document.getElementById('btn-mailbox');
-        const iconSpan = btnMailbox ? btnMailbox.querySelector('.hud-icon') : null;
-        
-        if (btnMailbox) {
-            // 核心修复：重新绑定点击打开信箱目录的逻辑
-            btnMailbox.onclick = () => this.openMailboxDirectory();
-        }
-
-        if (redDot) {
-            if (newMail) {
-                redDot.style.display = 'flex';
-                if (iconSpan) iconSpan.innerText = "📬"; 
-            } else {
-                redDot.style.display = 'none';
-                if (iconSpan) iconSpan.innerText = "📭"; 
-            }
-        }
-    },
-
-    // ============================================================
-    // 书架渲染逻辑 (修复书架空白问题)
-    // ============================================================
-    renderBookshelf() {
-        const container = document.getElementById('bookshelf');
-        if (!container) return;
-
-        container.innerHTML = "";
-        const books = Library.getAll();
-        
-        books.forEach(book => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'book-item-container';
-            wrapper.title = `${book.title}\n出版日期: ${book.date}`;
-            
-            if (book.isMystery) {
-                 wrapper.style.filter = "sepia(0.2) drop-shadow(0 0 5px gold)";
-            }
-
-            const img = document.createElement('img');
-            img.src = book.cover || 'assets/images/booksheet/booksheet1.png';
-            img.className = 'book-cover-img';
-            
-            const titleSpan = document.createElement('div');
-            titleSpan.className = 'book-title-text';
-            titleSpan.innerText = book.title;
-
-            wrapper.appendChild(img);
-            wrapper.appendChild(titleSpan);
-
-            wrapper.onclick = () => this.openBook(book);
-            container.appendChild(wrapper);
-        });
-    },
-
-    openBook(book) {
-        this.currentBookId = book.id;
-        const modal = document.getElementById('reader-modal');
-        const dateEl = document.getElementById('reader-date');
-        
-        document.getElementById('reader-title').innerText = book.title;
-        const htmlContent = marked.parse(book.content, { breaks: true });
-        document.getElementById('reader-text').innerHTML = htmlContent;
-
-        if (dateEl) dateEl.innerText = `出版于: ${book.date}`;
-        this.toggleReaderMode(false); 
-        modal.style.display = 'flex';
-    },
-
-    toggleReaderMode(isEdit) {
-        const viewMode = document.getElementById('reader-view-mode');
-        const editMode = document.getElementById('reader-edit-mode');
-        const editBtn = document.getElementById('btn-edit-book');
-
-        if (isEdit) {
-            viewMode.style.display = 'none';
-            editMode.style.display = 'flex';
-            if (editBtn) editBtn.style.display = 'none'; 
-        } else {
-            viewMode.style.display = 'block';
-            editMode.style.display = 'none';
-            if (editBtn) editBtn.style.display = 'inline-block';
-        }
-    },
-
-    // ============================================================
-    // 背包渲染逻辑 (修复日记残片消失问题)
-    // ============================================================
-    renderBackpack() {
-        const gridEl = document.getElementById('backpack-grid');
-        const detailEmpty = document.getElementById('bp-detail-empty');
-        const detailContent = document.getElementById('bp-detail-content');
-        
-        if (!gridEl) return;
-        gridEl.innerHTML = "";
-        
-        const fragments = UserData.state.fragments || [];
-        if (fragments.length === 0) {
-            gridEl.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#ccc; margin-top:50px;">背包空空如也</div>`;
-            return;
-        }
-
-        fragments.forEach(fragId => {
-            const info = StoryManager.getFragmentDetails(fragId);
-            if (!info) return; 
-
-            const slot = document.createElement('div');
-            slot.className = 'bp-slot';
-            slot.title = info.title;
-            const img = document.createElement('img');
-            img.src = info.icon || 'assets/images/item/note1.png'; 
-            slot.appendChild(img);
-
-            slot.onclick = () => {
-                document.querySelectorAll('.bp-slot').forEach(el => el.classList.remove('active'));
-                slot.classList.add('active');
-                if (detailEmpty) detailEmpty.style.display = 'none';
-                if (detailContent) {
-                    detailContent.style.display = 'block';
-                    document.getElementById('bp-detail-img').src = info.icon;
-                    document.getElementById('bp-detail-title').innerText = info.title;
-                    document.getElementById('bp-detail-origin').innerText = info.origin;
-                    document.getElementById('bp-detail-desc').innerText = info.content;
-                }
-            };
-            gridEl.appendChild(slot);
-        });
-    },
-
-    // ============================================================
-    // 信箱详细逻辑 (修复无法查看信件问题)
-    // ============================================================
-    openMailboxDirectory() {
-        ModalManager.closeAll(); 
-        const modal = document.getElementById('modal-mailbox');
-        const grid = document.getElementById('mailbox-grid');
-        if (!modal || !grid) return;
-
-        grid.innerHTML = ""; 
-        const archive = MailManager.getMailArchive(); 
-
-        archive.forEach(item => {
-            const el = document.createElement('div');
-            el.className = 'mail-grid-item';
-            let titleText = item.title;
-            let dayText = `Day ${item.day}`;
-            
-            if (item.type !== 'letter') {
-                el.classList.add('locked');
-                titleText = "???";
-            } else {
-                if (!item.isRead) el.classList.add('unread');
-                el.onclick = () => this.openLetterDetail(item);
-            }
-
-            el.innerHTML = `
-                <div class="mail-info-box">
-                    <div class="mail-title">${titleText}</div>
-                    <div class="mail-day">${dayText}</div>
-                </div>
-            `;
-            grid.appendChild(el);
-        });
-        modal.style.display = 'flex';
-    },
-
-    openLetterDetail(letterData) {
-        const modal = document.getElementById('modal-letter');
-        if (!modal) return;
-        document.getElementById('letter-view-date').innerText = `Day ${letterData.day}`;
-        document.getElementById('letter-view-sender').innerText = letterData.sender;
-        document.getElementById('letter-view-title').innerText = letterData.title;
-        document.getElementById('letter-view-body').innerHTML = letterData.content.replace(/\n/g, '<br>');
-        modal.style.display = 'flex';
-
-        if (!UserData.hasReadMail(letterData.day)) {
-            UserData.markMailAsRead(letterData.day);
-            this.updateMailboxStatus();
-            this.openMailboxDirectory(); // 刷新红点和NEW状态
-        }
-    },
-
-    // ============================================================
-    // 其他系统逻辑
-    // ============================================================
+    // 简单的日志工具 (委托给 HUD 或直接操作 DOM)
     log(msg) {
-        const box = document.getElementById('log-box');
-        if (!box) return;
-        const time = new Date().toLocaleTimeString();
-        const div = document.createElement('div');
-        div.innerHTML = `<span style="color:#999; font-size:12px;">[${time}]</span> ${msg}`;
-        div.style.borderBottom = "1px dashed #eee";
-        div.style.padding = "4px 0";
-        box.prepend(div);
+        HUDRenderer.log(msg);
+    },
+
+    // ================= 场景控制 =================
+    
+    bindGlobalEvents() {
+        // 全局回家按钮
+        const btnHome = document.getElementById('btn-icon-home');
+        if (btnHome) {
+            btnHome.onclick = () => this.returnHome();
+        }
+        
+        // 房间内的“门”热区
+        const door = document.getElementById('hotspot-door');
+        if (door) {
+            door.onclick = () => this.toggleMap(true);
+        }
+
+        // 地图上的“回房间” Pin
+        const homePin = document.getElementById('hotspot-home-pin');
+        if (homePin) {
+            homePin.onclick = () => {
+                this.toggleMap(false); 
+                this.log("逛累了，回到了温馨的房间。");
+            };
+        }
+    },
+
+    returnHome() {
+        // 1. 关闭所有弹窗
+        ModalManager.closeAll();
+
+        // 2. 处理场景切换
+        const mapScene = document.getElementById('scene-map');
+        const streetScene = document.getElementById('scene-intro'); 
+        
+        if (mapScene && mapScene.style.display !== 'none') {
+            this.toggleMap(false); // 从地图回房间
+        } else if (streetScene && streetScene.style.display !== 'none') {
+            StoryManager.returnHome(); // 从剧情回房间
+        } else {
+            this.log("已经在房间里了。");
+        }
     },
 
     toggleMap(show) {
         const room = document.getElementById('scene-room');
         const map = document.getElementById('scene-map');
-        if (show) {
-            if (room) room.style.display = 'none';
-            if (map) map.style.display = 'flex'; 
-            this.log("推开门，来到了街道上。");
-        } else {
-            if (room) room.style.display = 'block';
-            if (map) map.style.display = 'none';
-            this.log("回到了房间。");
-        }
-    },
-
-    // 工作台下拉选择器渲染
-    renderWorkbenchNotebookSelector() {
-        const selectEl = document.getElementById('workbench-filter-notebook');
-        if (!selectEl) return;
-        const currentVal = selectEl.value;
-        selectEl.innerHTML = `<option value="ALL">📂 所有记忆 (All)</option>`;
-        selectEl.innerHTML += `<option value="INBOX_VIRTUAL_ID">📥 收件箱 (Unsorted)</option>`;
-
-        UserData.state.notebooks.forEach(nb => {
-            const option = document.createElement('option');
-            option.value = nb.id;
-            const iconDisplay = (nb.icon && nb.icon.includes('/')) ? '📔' : nb.icon;
-            option.text = `${iconDisplay} ${nb.name}`;
-            selectEl.appendChild(option);
-        });
-        if (currentVal) selectEl.value = currentVal;
-    },
-
-    renderWorkbenchList(filterText = "", filterNotebookId = "ALL") {
-        const listEl = document.getElementById('workbench-sources');
-        if (!listEl) return;
-        listEl.innerHTML = "";
-        const allEntries = Journal.getAll();
-        const filteredEntries = allEntries.filter(entry => {
-            const matchText = !filterText || entry.content.toLowerCase().includes(filterText.toLowerCase());
-            let matchNotebook = true;
-            if (filterNotebookId === "ALL") matchNotebook = true;
-            else if (filterNotebookId === "INBOX_VIRTUAL_ID") matchNotebook = (!entry.notebookIds || entry.notebookIds.length === 0);
-            else matchNotebook = (entry.notebookIds && entry.notebookIds.includes(filterNotebookId));
-            return matchText && matchNotebook;
-        });
-
-        if (filteredEntries.length === 0) {
-            listEl.innerHTML = `<div style="color:#999; text-align:center; margin-top:20px;">没有找到相关记忆碎片</div>`;
-            return;
-        }
+        if (room) room.style.display = show ? 'none' : 'block';
+        if (map) map.style.display = show ? 'flex' : 'none';
         
-        filteredEntries.forEach(entry => {
-            const btn = document.createElement('button');
-            const displayTime = entry.time || ""; 
-            const preview = entry.content.substring(0, 15).replace(/\n/g, " ") + "...";
-            btn.innerHTML = `<div style="font-weight:bold; margin-bottom:4px;">➕ ${entry.date} ${displayTime}</div><div style="font-size:12px; color:#666;">${preview}</div>`;
-            btn.className = "workbench-item-btn"; // 假设 CSS 已定义
-            btn.style.cssText = "display:block; width:100%; margin-bottom:8px; padding:10px; cursor:pointer; text-align:left; border:1px solid #eee; background:#fff; border-radius:6px;";
-            btn.onclick = () => {
-                import('../logic/Binder.js').then(m => {
-                    m.Binder.appendFragment(entry.content);
-                    const manuscript = document.getElementById('manuscript-editor');
-                    if (manuscript) manuscript.value = m.Binder.currentManuscript;
-                });
-            };
-            listEl.appendChild(btn);
-        });
+        this.log(show ? "推开门，来到了街道上。" : "回到了房间。");
     }
 };
 

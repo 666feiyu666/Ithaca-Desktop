@@ -1,31 +1,165 @@
+/* src/js/ui/SidebarRenderer.js */
 import { Journal } from '../data/Journal.js';
 import { UserData } from '../data/UserData.js';
 import { ModalManager } from './ModalManager.js';
+import { HUDRenderer } from './HUDRenderer.js'; // 引入 HUD 以刷新墨水
+import { marked } from '../libs/marked.esm.js';   // 引入 marked 以支持预览
 
 export const SidebarRenderer = {
     currentNotebookId: null, // 当前选中的手记本ID (null 代表顶层目录)
     activeEntryId: null,     // 当前正在编辑/查看的日记ID
 
     init() {
-        // 绑定 + 号按钮事件 (原 app.js 逻辑移入此处)
+        // 1. 绑定 + 号按钮事件
         const addBtn = document.getElementById('btn-new-entry');
         if (addBtn) {
             addBtn.onclick = () => this.handleNewEntry();
         }
+
+        // 2. 绑定编辑器内部的所有交互事件 (关键修复：之前缺失的部分)
+        this.bindEditorEvents();
         
-        // 初始化时如果有数据，默认选中第一条
+        // 3. 初始化时如果有数据，默认选中第一条
         const all = Journal.getAll();
         if (all.length > 0 && !this.activeEntryId) {
             this.activeEntryId = all[0].id;
         }
 
-        // 初始渲染编辑器内容
+        // 4. 初始渲染编辑器内容
         this.loadActiveEntry();
     },
 
     /**
+     * 绑定编辑器区域的事件 (保存、确认、删除、预览)
+     */
+    bindEditorEvents() {
+        // A. 输入框自动保存
+        const editor = document.getElementById('editor-area');
+        if (editor) {
+            editor.oninput = () => {
+                if (this.activeEntryId) {
+                    Journal.updateEntry(this.activeEntryId, editor.value);
+                    this.updateSaveStatus("正在保存...", "#666");
+                    
+                    // 防抖模拟保存完成提示
+                    clearTimeout(this._saveTimer);
+                    this._saveTimer = setTimeout(() => {
+                        this.updateSaveStatus("已自动保存", "#999");
+                    }, 800);
+                }
+            };
+        }
+
+        // B. 确认记录按钮
+        const btnConfirm = document.getElementById('btn-confirm-entry');
+        if (btnConfirm) {
+            btnConfirm.onclick = () => this.handleConfirmEntry();
+        }
+
+        // C. 删除日记按钮
+        const btnDelete = document.getElementById('btn-delete-entry');
+        if (btnDelete) {
+            btnDelete.onclick = () => this.handleDeleteEntry();
+        }
+
+        // D. 预览按钮
+        const btnPreview = document.getElementById('btn-toggle-journal-preview');
+        if (btnPreview) {
+            btnPreview.onclick = () => this.togglePreview();
+        }
+    },
+
+    updateSaveStatus(msg, color) {
+        const el = document.getElementById('save-status');
+        if(el) {
+            el.innerText = msg;
+            el.style.color = color;
+        }
+    },
+
+    /**
+     * 处理确认日记 (获得墨水)
+     */
+    handleConfirmEntry() {
+        if (!this.activeEntryId) return;
+
+        // 调用数据层进行确认
+        const isSuccess = Journal.confirmEntry(this.activeEntryId);
+        
+        if (isSuccess) {
+            // 1. 发放奖励
+            UserData.addInk(10);
+            
+            // 2. 刷新顶部 HUD (墨水/字数)
+            HUDRenderer.updateAll();
+            
+            // 3. 刷新侧边栏 (更新图标状态)
+            this.render(); 
+            
+            // 4. 刷新按钮状态 (变为不可点)
+            const currentEntry = Journal.getAll().find(e => e.id === this.activeEntryId);
+            this.updateConfirmButtonState(currentEntry);
+            
+            HUDRenderer.log("✅ 记忆已确认。墨水 +10ml。");
+        } else {
+            HUDRenderer.log("这条记忆已经确认过了。");
+        }
+    },
+
+    /**
+     * 处理删除日记
+     */
+    handleDeleteEntry() {
+        if (!this.activeEntryId) return;
+
+        if (confirm("确定要撕毁这一页日记吗？此操作无法撤销。")) {
+            // 1. 执行删除
+            Journal.deleteEntry(this.activeEntryId);
+            HUDRenderer.log("🗑️ 撕毁了一页记忆。");
+
+            // 2. 尝试选中下一条，或者置空
+            const remaining = Journal.getAll();
+            this.activeEntryId = remaining.length > 0 ? remaining[0].id : null;
+
+            // 3. 刷新界面
+            this.render();
+            this.loadActiveEntry();
+            HUDRenderer.updateAll(); // 字数可能变化
+        }
+    },
+
+    /**
+     * 切换 Markdown 预览模式
+     */
+    togglePreview() {
+        const editor = document.getElementById('editor-area');
+        const preview = document.getElementById('editor-preview');
+        const btn = document.getElementById('btn-toggle-journal-preview');
+
+        if (!editor || !preview || !btn) return;
+
+        if (preview.style.display === 'none') {
+            // 切换到预览
+            const rawText = editor.value;
+            preview.innerHTML = marked.parse(rawText, { breaks: true });
+            preview.style.display = 'block';
+            // 隐藏输入框或覆盖它，这里选择覆盖显示的样式
+            // 但为了简单，我们通常让 preview 盖在 textarea 上，或者隐藏 textarea
+            // css 中 markdown-preview 通常定位在 absolute
+            
+            btn.innerText = "✏️ 继续编辑";
+            btn.style.background = "#333";
+        } else {
+            // 切换回编辑
+            preview.style.display = 'none';
+            btn.innerText = "👁️ 预览";
+            btn.style.background = "#666";
+            editor.focus();
+        }
+    },
+
+    /**
      * 主渲染入口
-     * 根据当前状态决定渲染“手记本列表”还是“特定手记本内的日记列表”
      */
     render() {
         if (!this.currentNotebookId) {
@@ -36,7 +170,7 @@ export const SidebarRenderer = {
     },
 
     /**
-     * Level 1: 渲染手记本目录 (归档系统)
+     * Level 1: 渲染手记本目录
      */
     renderNotebookList() {
         const listEl = document.getElementById('journal-list');
@@ -48,7 +182,6 @@ export const SidebarRenderer = {
         
         if (headerEl) headerEl.innerText = "📂 归档系统";
         
-        // 恢复右上角加号为默认功能
         if (addBtn) {
             addBtn.title = "新建日记";
             addBtn.onclick = () => this.handleNewEntry();
@@ -56,7 +189,7 @@ export const SidebarRenderer = {
 
         const allEntries = Journal.getAll();
 
-        // 1. 仓库 (所有日记)
+        // 1. 仓库
         const totalCount = allEntries.length;
         this._createFolderItem(listEl, {
             name: "仓库",
@@ -87,11 +220,9 @@ export const SidebarRenderer = {
         // 3. 用户自定义手记本
         UserData.state.notebooks.forEach(nb => {
             if (nb.id === 'nb_inbox' || nb.id === 'nb_daily') return;
-
             const count = allEntries.filter(e => {
                 return (e.notebookIds && e.notebookIds.includes(nb.id)) || e.notebookId === nb.id;
             }).length;
-            
             this._createCustomNotebookItem(listEl, nb, count);
         });
 
@@ -118,7 +249,6 @@ export const SidebarRenderer = {
         let entries = [];
         let title = "";
 
-        // 获取数据
         if (notebookId === 'REPO_ALL_ID') {
             title = "💾 所有记忆";
             entries = Journal.getAll();
@@ -133,26 +263,23 @@ export const SidebarRenderer = {
             });
         }
 
-        // 更新头部 (带返回按钮)
         if (headerEl) {
             headerEl.innerHTML = `<span id="btn-back-level" class="nav-back-btn" style="cursor:pointer; margin-right:5px;">⬅️</span> ${title}`;
             const backBtn = document.getElementById('btn-back-level');
             if(backBtn) {
                 backBtn.onclick = (e) => {
                     e.stopPropagation(); 
-                    this.currentNotebookId = null; // 返回上一级
+                    this.currentNotebookId = null;
                     this.render();
                 };
             }
         }
 
-        // 更新加号按钮 (在当前本子内新建)
         if (addBtn) {
             addBtn.title = "在此手记本中新建";
             addBtn.onclick = () => this.handleNewEntry();
         }
 
-        // 渲染列表项
         if (entries.length === 0) {
             listEl.innerHTML = `<div style="text-align:center; color:#999; margin-top:20px; font-size:12px;">这里是空的<br>点击右上角 + 添加想法</div>`;
         } else {
@@ -174,10 +301,8 @@ export const SidebarRenderer = {
                 
                 btn.onclick = () => {
                     this.activeEntryId = entry.id;
-                    // 高亮切换
                     listEl.querySelectorAll('.list-item').forEach(i => i.classList.remove('active'));
                     btn.classList.add('active');
-                    // 加载到编辑器
                     this.loadActiveEntry();   
                 };
                 listEl.appendChild(btn);
@@ -185,18 +310,13 @@ export const SidebarRenderer = {
         }
     },
 
-    /**
-     * 处理新建日记逻辑
-     */
     handleNewEntry() {
         const newEntry = Journal.createNewEntry();
         this.activeEntryId = newEntry.id;
 
-        // 如果在特定本子内，自动归档
         if (this.currentNotebookId && !['REPO_ALL_ID', 'INBOX_VIRTUAL_ID'].includes(this.currentNotebookId)) {
             Journal.toggleNotebook(newEntry.id, this.currentNotebookId);
         } else {
-            // 如果在仓库视图新建，临时跳转到“收件箱”视图以便看到新日记
             if (!this.currentNotebookId || this.currentNotebookId === 'REPO_ALL_ID') {
                  this.currentNotebookId = 'INBOX_VIRTUAL_ID';
             }
@@ -204,21 +324,22 @@ export const SidebarRenderer = {
 
         this.render();
         this.loadActiveEntry();
-        
-        // 聚焦编辑器
         const editor = document.getElementById('editor-area');
-        if(editor) {
-            editor.focus();
-        }
-        console.log(`[Sidebar] Created new entry: ${newEntry.id}`);
+        if(editor) editor.focus();
     },
 
-    /**
-     * 将当前激活的日记加载到右侧编辑器
-     */
     loadActiveEntry() {
         const editor = document.getElementById('editor-area');
         const tagBar = document.getElementById('entry-tag-bar');
+        const preview = document.getElementById('editor-preview');
+
+        // 切换日记时，重置预览状态
+        if (preview) preview.style.display = 'none';
+        const btnPreview = document.getElementById('btn-toggle-journal-preview');
+        if (btnPreview) {
+             btnPreview.innerText = "👁️ 预览";
+             btnPreview.style.background = "#666";
+        }
 
         if (!this.activeEntryId) {
             if (editor) editor.value = "";
@@ -232,18 +353,13 @@ export const SidebarRenderer = {
             this.updateConfirmButtonState(entry);
             this.renderTagBar(entry);
         } else {
-            // ID 存在但找不到数据（可能被删除了）
             if (editor) editor.value = "";
         }
     },
 
-    /**
-     * 渲染编辑器下方的标签栏
-     */
     renderTagBar(entry) {
         let tagContainer = document.getElementById('entry-tag-bar');
         
-        // 如果容器不存在，动态创建
         if (!tagContainer) {
             tagContainer = document.createElement('div');
             tagContainer.id = 'entry-tag-bar';
@@ -284,9 +400,7 @@ export const SidebarRenderer = {
             
             tag.onclick = () => {
                 Journal.toggleNotebook(entry.id, nb.id);
-                this.renderTagBar(entry); // 重新渲染自己以更新状态
-                
-                // 如果当前正好在这个本子的视图里，移除了标签可能需要刷新列表
+                this.renderTagBar(entry);
                 if (this.currentNotebookId === nb.id || this.currentNotebookId === 'INBOX_VIRTUAL_ID') {
                      this.render(); 
                 }
@@ -312,10 +426,6 @@ export const SidebarRenderer = {
             btn.disabled = false;
         }
     },
-
-    // ============================================================
-    // 🛠️ 辅助方法 (内部使用)
-    // ============================================================
 
     _createFolderItem(container, { name, icon, count, color, onClick }) {
         const div = document.createElement('div');
@@ -356,15 +466,12 @@ export const SidebarRenderer = {
         countSpan.className = 'nb-count';
         countSpan.innerText = count;
 
-        // 操作栏 (重命名/删除)
         const actionsDiv = document.createElement('div');
         actionsDiv.style.cssText = "display:none; gap:5px;";
         
-        // 重命名
         const btnRename = this._createActionBtn("✏️", "重命名", (e) => {
             this.showNotebookInputModal('rename', nb.id, nb.name);
         });
-        // 删除
         const btnDelete = this._createActionBtn("🗑️", "删除手记本", (e) => {
             if (confirm(`确定要删除《${nb.name}》吗？\n\n注意：里面的日记不会被删除，它们仍会保留在“所有记忆”中。`)) {
                 if (UserData.deleteNotebook(nb.id)) {
@@ -382,7 +489,6 @@ export const SidebarRenderer = {
         div.appendChild(countSpan);
         div.appendChild(actionsDiv);
         
-        // 悬停交互
         div.onmouseenter = () => {
             countSpan.style.display = 'none';
             actionsDiv.style.display = 'flex';
@@ -416,11 +522,7 @@ export const SidebarRenderer = {
         return btn;
     },
 
-    /**
-     * 手记本输入弹窗 (新建/重命名)
-     */
     showNotebookInputModal(mode = 'create', targetId = null, currentName = '') {
-        // 先移除可能存在的旧弹窗
         const existing = document.getElementById('dynamic-modal-input');
         if (existing) existing.remove();
 
@@ -429,7 +531,6 @@ export const SidebarRenderer = {
         const btnText = isRename ? "保存修改" : "创建";
         const inputValue = isRename ? currentName : "";
         
-        // 创建 DOM
         const overlay = document.createElement('div');
         overlay.id = 'dynamic-modal-input';
         overlay.className = 'modal-overlay'; 
@@ -470,7 +571,7 @@ export const SidebarRenderer = {
             } else {
                 UserData.createNotebook(name);
             }
-            this.render(); // 刷新列表
+            this.render();
             close();
         };
 
@@ -482,7 +583,6 @@ export const SidebarRenderer = {
             if (e.key === 'Escape') close();
         };
 
-        // 自动聚焦
         setTimeout(() => {
             input.focus();
             if(isRename) input.select();

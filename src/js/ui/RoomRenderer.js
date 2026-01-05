@@ -1,13 +1,13 @@
+/* src/js/ui/RoomRenderer.js */
 import { UserData } from '../data/UserData.js';
 import { DragManager } from '../logic/DragManager.js';
 import { StoryManager } from '../logic/StoryManager.js';
 import { CityEvent } from '../logic/CityEvent.js';
 import { ModalManager } from './ModalManager.js';
 import { SidebarRenderer } from './SidebarRenderer.js';
-// 如果你也拆分了书架渲染器，可以在这里导入，或者暂时通过全局 UIRenderer 调用
-// import { BookshelfRenderer } from './BookshelfRenderer.js'; 
+import { BookshelfRenderer } from './BookshelfRenderer.js';
 
-// 物品配置数据库 (建议后续移入单独的 config 文件)
+// 物品配置数据库
 const ITEM_DB = {
     'item_desk_default':      { src: 'assets/images/room/desktop.png',   type: 'desk' },
     'item_bookshelf_default': { src: 'assets/images/room/bookshelf.png', type: 'bookshelf' },
@@ -22,11 +22,11 @@ const ITEM_DB = {
 export const RoomRenderer = {
     
     init() {
-        // 如果有需要初始化的逻辑放在这里
+        // 初始化逻辑 (如需)
     },
 
     /**
-     * 主渲染方法：根据 UserData.layout 渲染房间内所有家具
+     * 主渲染方法：渲染房间内家具 + 底部物品栏
      */
     render() {
         const container = document.querySelector('.iso-room');
@@ -35,16 +35,17 @@ export const RoomRenderer = {
         // 1. 清理旧家具
         container.querySelectorAll('.pixel-furniture').forEach(el => el.remove());
 
-        // 2. 获取布局数据
+        // 2. 获取布局数据并排序 (简单的 Z-Index 处理)
         const layout = UserData.state.layout || [];
-
-        // 3. 排序：按 Y 轴坐标从小到大排序，确保近处的物体遮挡远处的 (简单的画家算法)
         const sortedLayout = [...layout].sort((a, b) => a.y - b.y);
 
-        // 4. 生成 DOM
+        // 3. 生成房间内 DOM
         sortedLayout.forEach(itemData => {
             this.createFurnitureElement(container, itemData);
         });
+
+        // 4. 同时刷新底部物品栏 (Inventory Bar)
+        this.renderInventoryBar();
     },
 
     /**
@@ -62,13 +63,13 @@ export const RoomRenderer = {
         // 设置位置样式
         img.style.left = itemData.x + '%';
         img.style.top = itemData.y + '%';
-        img.style.zIndex = Math.floor(itemData.y); // Z-Index 基于 Y 坐标
+        img.style.zIndex = Math.floor(itemData.y); 
 
-        // 设置朝向 (CSS Variable)
+        // 设置朝向
         const dir = itemData.direction || 1;
         img.style.setProperty('--dir', dir);
 
-        // 设置特定类型的宽度
+        // 设置宽度
         img.style.width = this.getFurnitureWidth(config.type);
 
         // --- 事件绑定 ---
@@ -77,7 +78,6 @@ export const RoomRenderer = {
         img.onmousedown = (e) => {
             if (DragManager.isDecorating) {
                 e.stopPropagation();
-                // 启动拖拽逻辑
                 DragManager.startDragExisting(e, itemData.uid, config.src, itemData.direction || 1);
             }
         };
@@ -85,13 +85,9 @@ export const RoomRenderer = {
         // 2. 点击交互 (Click)
         img.onclick = (e) => {
             e.stopPropagation();
-            
-            // 装修模式下禁止交互
             if (DragManager.isDecorating) return;
 
-            // 交互前关闭其他可能存在的遮罩
             ModalManager.closeAll();
-
             this.handleFurnitureInteraction(config.type);
         };
 
@@ -99,57 +95,105 @@ export const RoomRenderer = {
     },
 
     /**
-     * 处理不同家具的点击交互逻辑
+     * 渲染底部物品栏 (Inventory Bar) - 补全了此处逻辑
+     */
+    renderInventoryBar() {
+        const listEl = document.getElementById('inventory-bar');
+        if (!listEl) return;
+        
+        listEl.innerHTML = "";
+
+        // 统计拥有的物品
+        const ownedCounts = {};
+        (UserData.state.inventory || []).forEach(itemId => {
+            ownedCounts[itemId] = (ownedCounts[itemId] || 0) + 1;
+        });
+
+        // 统计已摆放的物品
+        const placedCounts = {};
+        (UserData.state.layout || []).forEach(item => {
+            placedCounts[item.itemId] = (placedCounts[item.itemId] || 0) + 1;
+        });
+
+        // 渲染每一个种类的物品槽
+        Object.keys(ownedCounts).forEach(itemId => {
+            const totalOwned = ownedCounts[itemId];
+            const alreadyPlaced = placedCounts[itemId] || 0;
+            const availableCount = totalOwned - alreadyPlaced;
+
+            const config = ITEM_DB[itemId];
+            if (!config) return;
+
+            const slot = document.createElement('div');
+            slot.className = 'inventory-slot';
+            
+            const img = document.createElement('img');
+            img.src = config.src;
+            slot.appendChild(img);
+            
+            if (availableCount > 0) {
+                slot.title = `按住拖拽到房间 (剩余: ${availableCount})`;
+                // 显示数量角标
+                if (availableCount > 1) {
+                    const countBadge = document.createElement('span');
+                    countBadge.innerText = availableCount;
+                    countBadge.style.cssText = "position:absolute; bottom:2px; right:5px; color:white; font-size:12px; font-weight:bold; text-shadow:1px 1px 1px black;";
+                    slot.appendChild(countBadge);
+                }
+
+               // 绑定拖拽生成新家具事件
+               slot.onmousedown = (e) => {
+                    const roomEl = document.querySelector('.iso-room');
+                    const roomWidth = roomEl ? roomEl.offsetWidth : 1000;
+                    
+                    // 计算拖拽时的相对宽度
+                    let widthPercent = 0.15;
+                    const widthStr = this.getFurnitureWidth(config.type);
+                    if(widthStr.includes('%')) widthPercent = parseFloat(widthStr) / 100;
+                    
+                    const targetWidth = roomWidth * widthPercent;
+                    
+                    // 调用 DragManager 开始创建新家具
+                    DragManager.startDragNew(e, itemId, config.src, targetWidth);
+                };
+            } else {
+                // 如果用光了，变灰
+                slot.style.opacity = '0.4';
+                slot.style.cursor = 'default';
+                slot.title = "已全部摆放";
+            }
+            listEl.appendChild(slot);
+        });
+    },
+
+    /**
+     * 处理家具点击交互
      */
     handleFurnitureInteraction(type) {
         switch (type) {
             case 'desk':
-                // 打开书桌界面
                 ModalManager.open('modal-desk');
-                // 确保侧边栏是最新的（因为可能在别处修改了手记本）
                 SidebarRenderer.render(); 
                 break;
 
             case 'bookshelf':
-                // 尝试触发剧情
                 const isStoryTriggered = StoryManager.tryTriggerBookshelfStory();
                 if (!isStoryTriggered) {
-                    // 如果没剧情，打开书架 UI
                     ModalManager.open('modal-bookshelf-ui');
-                    
-                    // 注意：如果书架内容的渲染逻辑在别处（如 BookshelfRenderer），需要在这里调用
-                    // UIRenderer.renderBookshelf(); // 如果保留在旧 UIRenderer 中
-                    // 或者: BookshelfRenderer.render(); 
-                    
-                    // 临时兼容方案：如果 UIRenderer 还在全局且有此方法
-                    if (window.ithacaSystem && window.ithacaSystem.ui && window.ithacaSystem.ui.renderBookshelf) {
-                        window.ithacaSystem.ui.renderBookshelf();
-                    }
-                    // 如果是在 ES6 模块环境中直接引入了 UIRenderer (Facade)
-                    // import { UIRenderer } from './UIRenderer.js'; 
-                    // UIRenderer.renderBookshelf();
+                    BookshelfRenderer.render();
                 }
                 break;
 
             case 'rug':
-                // 地毯通常用于触发地图/外出
-                const modal = document.getElementById('modal-map-selection');
-                if (modal) {
-                    ModalManager.open('modal-map-selection');
-                    CityEvent.renderSelectionMenu();
-                }
+                ModalManager.open('modal-map-selection');
+                CityEvent.renderSelectionMenu();
                 break;
 
             default:
-                // 其他家具暂无交互，或者可以播放一个音效
-                console.log(`Clicked on ${type}, no action defined.`);
                 break;
         }
     },
 
-    /**
-     * 获取家具的预设宽度百分比
-     */
     getFurnitureWidth(type) {
         switch (type) {
             case 'desk':      return '22%';
