@@ -385,7 +385,7 @@
     margin: 0; padding: 0;
     
     /* 移除 scale 变换，使用 JS 传入的确切宽度，防止尺寸跳变 */
-    transform: none; 
+    /* transform: none;  */
 }
 
 /* 落地光标 (Landing Marker) - 绿色脚印 */

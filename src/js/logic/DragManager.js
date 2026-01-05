@@ -44,7 +44,7 @@ export const DragManager = {
 
         // ✨ 监听 R 键旋转
         document.addEventListener('keydown', (e) => {
-            if (this.isDecorating && this.draggedItem && (e.key === 'r' || e.key === 'R')) {
+            if (this.isDecorating && this.draggedItem && e.code === 'KeyR') {
                 this.rotateGhost();
             }
         });
@@ -91,16 +91,17 @@ export const DragManager = {
         }
     },
 
-    // ✨ 旋转逻辑
+    // 旋转逻辑
     rotateGhost() {
-        this.currentDirection *= -1; // 切换方向
+        this.currentDirection *= -1; 
         if (this.ghostEl) {
+            // 强制应用变换
             this.ghostEl.style.transform = `scaleX(${this.currentDirection})`;
+            // 可选：添加日志调试
+            console.log("旋转! 当前方向:", this.currentDirection);
         }
-        // 可选：给点提示
-        // UIRenderer.log(`🔄 旋转方向: ${this.currentDirection}`);
     },
-
+    
     // --- 1. 开始拖拽 (从背包拿新家具) ---
     // targetWidth: 从 UIRenderer 传入的预期像素宽度
     startDragNew(e, itemId, imgSrc, targetWidth) {

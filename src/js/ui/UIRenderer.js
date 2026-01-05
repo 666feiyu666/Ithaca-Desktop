@@ -41,6 +41,17 @@ export const UIRenderer = {
         HUDRenderer.log(msg);
     },
 
+    // 代理 DragManager 的渲染请求
+    renderRoomFurniture() {
+        // 让 RoomRenderer 重新根据数据画家具
+        RoomRenderer.render();
+    },
+
+    renderInventoryBar() {
+        // 让 RoomRenderer 刷新底部物品栏（更新数量/库存）
+        RoomRenderer.renderInventoryBar();
+    },
+
     // ================= 场景控制 =================
     
     bindGlobalEvents() {
