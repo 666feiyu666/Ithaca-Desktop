@@ -1,7 +1,4 @@
 # 🍍 The Ithaca Journal | 伊萨卡手记
-
-> "当你启程前往伊萨卡，但愿你的道路漫长，充满奇迹，充满发现。" —— 康斯坦丁·卡瓦菲斯
-
 ![Version](https://img.shields.io/badge/version-0.9.3-blueviolet) ![Status](https://img.shields.io/badge/status-In%20Development-orange) ![Electron](https://img.shields.io/badge/Electron-28.0-9cf) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---

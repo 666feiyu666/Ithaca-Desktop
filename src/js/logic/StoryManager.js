@@ -339,6 +339,6 @@ export const StoryManager = {
         UIRenderer.renderBookshelf();
         
         // 提示文案也对应更新
-        UIRenderer.log("📖 你发现了《伊萨卡手记 I：出发》");
+        UIRenderer.log("📖 你发现了《伊萨卡手记 I》");
     }
 };
