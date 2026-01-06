@@ -7,6 +7,7 @@ import { StoryManager } from '../logic/StoryManager.js';
 import { ModalManager } from './ModalManager.js';
 import { WorkbenchRenderer } from './WorkbenchRenderer.js'; 
 import { SidebarRenderer } from './SidebarRenderer.js'; // 修复：引入 SidebarRenderer
+import { Library } from '../data/Library.js';
 
 export const HUDRenderer = {
     init() {
@@ -110,17 +111,6 @@ export const HUDRenderer = {
 
         // 7. 重置
         this._bindClick('btn-icon-reset', () => this.handleReset());
-
-        // 8. 睡觉
-        this._bindClick('btn-sleep', () => {
-            UserData.save();
-            this.log(`晚安。今天是来到伊萨卡的第 ${UserData.state.day} 天。`);
-            alert("已保存进度。晚安！");
-        });
-        
-        // 9. 城市探索
-        this._bindClick('btn-explore-park', () => this.log(CityEvent.explore('公园')));
-        this._bindClick('btn-explore-subway', () => this.log(CityEvent.explore('subway')));
     },
 
     // --- 信箱逻辑 ---
@@ -222,26 +212,26 @@ export const HUDRenderer = {
         }
     },
 
+    // 🔄 修改：重置逻辑 (Game Reset)
     handleReset() {
-        if (confirm("⚠️ 确定要重置吗？这将清空一切！")) {
+        // 更新提示文案，让玩家放心书籍和日记是安全的
+        if (confirm("⚠️ 确定要重置【房间布置】和【游戏进度】吗？\n\n（注意：您的【书籍收藏】和【日记内容】会保留，不会被删除。）")) {
              // 1. 重置内存中的状态
              UserData.state = { 
                  day: 1, 
                  ink: 0, 
+                 totalWords: 0, // 进度重置
                  draft: "", 
                  inventory: [], 
-                 layout: undefined, // 设为 undefined 会触发 UserData.init 里的新手礼包逻辑
+                 layout: undefined, 
                  readMails: [], 
                  notebooks: [] 
              };
              
-             // =============== 🔧 修复代码开始 ===============
-             // 2. 必须保存到硬盘！
-             // 否则刷新后又会读取到旧的存档
+             // 2. 保存 UserData
              UserData.save(); 
-             // =============== 🔧 修复代码结束 ===============
 
-             alert("♻️ 世界已重启。");
+             alert("♻️ 世界已重建。");
              window.location.reload();
         }
     },

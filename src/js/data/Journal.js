@@ -146,6 +146,25 @@ export const Journal = {
         return this.entries;
     },
 
+    // ✨ 新增：重置日记本
+    reset() {
+        this.entries = [];
+        
+        // 保存更改 (假设 Journal 内部有 save 方法，或者通过 UserData 保存)
+        // 如果 Journal.js 是独立保存的：
+        if (typeof this.save === 'function') {
+            this.save();
+        } else {
+            // 如果是挂在 UserData 下的：
+            // UserData.state.journal = [];
+            // UserData.save();
+            // 根据您的架构，通常这里应该类似 Library 有个 save
+             window.ithacaSystem.saveData('journal_data.json', JSON.stringify(this.entries));
+        }
+        
+        console.log("📝 日记已清空");
+    },
+
     // 保存：写入到本地硬盘
     save() {
         window.ithacaSystem.saveData('journal_data.json', JSON.stringify(this.entries));

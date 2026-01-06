@@ -309,36 +309,45 @@ export const StoryManager = {
         }
     },
 
-    // --- 🛠️ 修复后的 endStory ---
-    endStory() {
+endStory() {
         const scene = document.getElementById('scene-intro');
         scene.style.display = 'none';
 
         const bgImg = scene.querySelector('.intro-bg');
         if (bgImg) bgImg.style.display = 'block';
 
+        const box = document.getElementById('intro-dialogue-box');
+        box.onclick = null; 
+
+        // 记录状态
         UserData.state.hasFoundMysteryEntry = true;
         UserData.save();
 
-        // ❌ 移除旧代码：不要再添加 'mystery_pineapple_01' 了！
-        /*
-        Library.addBook({
-            id: "mystery_pineapple_01",
-            title: "伊萨卡手记",
-            content: "待完善的内容...",
-            date: "2023/12/12",
-            cover: 'assets/images/booksheet/booksheet0.png'
-        });
-        */
+        // ✅ 核心修复：确保《伊萨卡手记 I》 (guide_book_part1) 存在
+        // 即使 Library.init() 已经运行过，我们在这里做双重保险，防止UI没刷新的问题
+        const targetId = GUIDE_BOOK_CONFIG.id;
+        const exists = Library.getAll().find(b => b.id === targetId);
 
-        // ✅ 新逻辑：
-        // 因为 Library.init() 已经保证了《伊萨卡手记 I》在书架上
-        // 我们只需要刷新一下 UI，并给个提示即可。
-        
+        if (!exists) {
+            // 如果内存里没有，手动添加进去（使用开头定义的配置）
+            Library.addBook(GUIDE_BOOK_CONFIG);
+        } else {
+            // 💡 优化：如果已经存在，我们可以强制更新一下封面或只读属性，防止数据陈旧
+            exists.isReadOnly = true; 
+            // 如果你的 Library.js 允许 update，也可以调用 Library.updateBook...
+        }
+
+        // 提示文案
+        UIRenderer.log("📖 你发现了《伊萨卡手记 I》");
+
+        // 打开书架界面，并渲染
         document.getElementById('modal-bookshelf-ui').style.display = 'flex';
         UIRenderer.renderBookshelf();
-        
-        // 提示文案也对应更新
-        UIRenderer.log("📖 你发现了《伊萨卡手记 I》");
+
+        // 结束 Promise
+        if (this._onStoryComplete) {
+            this._onStoryComplete();
+            this._onStoryComplete = null;
+        }
     }
 };

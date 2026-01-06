@@ -114,52 +114,6 @@ export const Library = {
 
         // 3. 保存更改到硬盘
         this.save(); 
-    },async init() {
-        // 1. 读取存档
-        const saved = await window.ithacaSystem.loadData('library_data.json');
-        if (saved) {
-            this.books = JSON.parse(saved);
-        } else {
-            this.books = [];
-        }
-
-        // --- 🧹 现有逻辑：清理旧的系统书 ---
-        this.books = this.books.filter(b => {
-            const isOldSystemBook = (b.title.includes("伊萨卡手记") && b.id !== GUIDE_BOOK_I.id && !b.isMystery);
-            return !isOldSystemBook;
-        });
-
-        // --- 🛠️ 现有逻辑：注入/更新《伊萨卡手记 I》 ---
-        const guideIndex = this.books.findIndex(b => b.id === GUIDE_BOOK_I.id);
-        if (guideIndex === -1) {
-            this.books.unshift(GUIDE_BOOK_I);
-        } else {
-            this.books[guideIndex] = { 
-                ...this.books[guideIndex], 
-                content: GUIDE_BOOK_I.content,
-                isReadOnly: true,
-                title: GUIDE_BOOK_I.title
-            };
-        }
-
-        // ============================================================
-        // ✨ 新增修复逻辑：强制更新《糖水菠萝的日记》的封面
-        // ============================================================
-        const targetBookId = "book_pineapple_diary_complete";
-        const pineappleBook = this.books.find(b => b.id === targetBookId);
-        
-        if (pineappleBook) {
-            // 强制覆盖为新的绿色封面 (booksheet1)
-            pineappleBook.cover = "assets/images/booksheet/booksheet1.png"; 
-            
-            // 顺手再次确保它是只读的
-            pineappleBook.isReadOnly = true; 
-            
-            console.log("已修复《糖水菠萝的日记》封面与属性");
-        }
-
-        // 3. 保存更改到硬盘
-        this.save(); 
     },
 
     // 增
@@ -226,6 +180,20 @@ export const Library = {
     // 查
     getAll() {
         return this.books;
+    },
+
+    // ✨ 新增：重置图书馆（清空所有书籍，但保留系统指南）
+    reset() {
+        // 1. 清空数组
+        this.books = [];
+        
+        // 2. 重新加入初始的系统指南 (如果需要保留的话)
+        // 如果想彻底清空，可以注释掉下面这行
+        // this.books.push(GUIDE_BOOK_I); 
+
+        // 3. 保存
+        this.save();
+        console.log("📚 图书馆已重置");
     },
 
     // 存

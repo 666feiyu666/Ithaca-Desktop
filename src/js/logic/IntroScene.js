@@ -18,32 +18,35 @@ export const IntroScene = {
     timer: null,
 
     init() {
-    const scene = document.getElementById('scene-intro');
-    const room = document.getElementById('scene-room');
-    
-    // 1. 如果已经看过剧情，直接确保场景隐藏，房间显示
-    if (UserData.state.hasWatchedIntro) {
-        scene.style.display = 'none'; // 确保万无一失
-        if (room) room.style.display = 'block'; 
-        return;
-    }
+        const scene = document.getElementById('scene-intro');
+        const room = document.getElementById('scene-room');
+        
+        // 1. 如果已经看过剧情，直接确保场景隐藏，房间显示
+        if (UserData.state.hasWatchedIntro) {
+            scene.style.display = 'none'; // 确保万无一失
+            if (room) room.style.display = 'block'; 
+            
+            // 重要：即使不播放，也要确保没有残留的点击事件
+            scene.onclick = null;
+            return;
+        }
 
-    // 2. 只有确实需要播放剧情时，才进行 DOM 操作显示
-    if (room) room.style.display = 'none';
-    scene.style.display = 'flex'; // 此时再显示
-    scene.style.opacity = 1;
-    scene.style.background = '#000'; 
-    
-    const bgImg = scene.querySelector('.intro-bg');
-    if (bgImg) bgImg.style.opacity = '1';
+        // 2. 只有确实需要播放剧情时，才进行 DOM 操作显示
+        if (room) room.style.display = 'none';
+        scene.style.display = 'flex'; // 此时再显示
+        scene.style.opacity = 1;
+        scene.style.background = '#000'; 
+        
+        const bgImg = scene.querySelector('.intro-bg');
+        if (bgImg) bgImg.style.opacity = '1';
 
-    // 3. 绑定点击事件 (核心修复)
+        // 3. 绑定点击事件 (核心修复)
         // 点击整个场景区域，推进下一句对话
         scene.onclick = () => {
             this.next();
         };
 
-        // 绑定跳过按钮 (顺便把这个也加上，防止以后忘了)
+        // 绑定跳过按钮
         const btnSkip = document.getElementById('btn-skip-intro');
         if (btnSkip) {
             btnSkip.onclick = (e) => {
@@ -52,7 +55,7 @@ export const IntroScene = {
             };
         }
 
-    this.renderLine();
+        this.renderLine();
     },
 
     next() {
@@ -97,7 +100,11 @@ export const IntroScene = {
     // 🎬 剧情结束 -> 引导开始
     endIntro() {
         const scene = document.getElementById('scene-intro');
-        const room = document.getElementById('scene-room'); // 获取房间
+        const room = document.getElementById('scene-room'); 
+
+        // ✅ 核心修复：剧情结束时，必须彻底解绑点击事件！
+        // 否则下次 StoryManager 复用这个界面时，还会触发 Intro 的逻辑
+        scene.onclick = null; 
 
         // 🔴 核心修复：转场开始前，先把房间显示出来（在 intro 层底下）
         // 这样当 intro 淡出时，房间才会浮现出来
