@@ -128,22 +128,20 @@ export const BookshelfRenderer = {
 
     handleDeleteBook() {
         if (!this.currentBookId) return;
-        if (confirm("确定要销毁这本书吗？")) {
-            Library.deleteBook(this.currentBookId);
-            HUDRenderer.log("销毁了一本书籍。");
-            ModalManager.close('reader-modal');
-            this.render();
-        }
-    },
-
-    toggleEditMode(isEdit) {
-        const viewMode = document.getElementById('reader-view-mode');
-        const editMode = document.getElementById('reader-edit-mode');
-        const btnEdit = document.getElementById('btn-edit-book');
         
-        if(viewMode) viewMode.style.display = isEdit ? 'none' : 'block';
-        if(editMode) editMode.style.display = isEdit ? 'flex' : 'none';
-        if(btnEdit) btnEdit.style.display = isEdit ? 'none' : 'inline-block';
+        if (confirm("确定要销毁这本书吗？")) {
+            // ✨ 修复：这里原来调用的是 deleteBook，现在改为 removeBook
+            // 并且接收返回值判断是否删除成功
+            const success = Library.removeBook(this.currentBookId);
+            
+            if (success) {
+                HUDRenderer.log("销毁了一本书籍。");
+                ModalManager.close('reader-modal');
+                this.render(); // 刷新书架
+            } else {
+                alert("无法销毁：可能是系统书籍或数据出错。");
+            }
+        }
     },
 
     _bindClick(id, handler) {

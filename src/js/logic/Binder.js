@@ -1,23 +1,26 @@
-/* js/logic/Binder.js */
+/* src/js/logic/Binder.js */
 import { Library } from '../data/Library.js';
 import { UserData } from '../data/UserData.js';
 
 export const Binder = {
-    // 暂存当前正在编辑的书稿 (Manuscript)
+    // 暂存当前正在编辑的书稿
     currentManuscript: "", 
+    // ✨ 新增：暂存当前选择的封面 (默认值)
+    currentCover: 'assets/images/booksheet/booksheet1.png',
 
-    // 把某篇日记的内容追加到书稿里 (Import)
     appendFragment(text) {
-        // 自动加两个换行符，区分段落
         this.currentManuscript += text + "\n\n"; 
     },
 
-    // 手动修改书稿内容
     updateManuscript(text) {
         this.currentManuscript = text;
     },
 
-    // 最终出版 (Finalize)
+    // ✨ 新增：供 UI 调用以设置封面
+    setCover(coverPath) {
+        this.currentCover = coverPath;
+    },
+
     publish(title, coverImg) {
         if (this.currentManuscript.length < 10) {
             return { success: false, msg: "书稿内容太少，无法出版。" };
@@ -28,18 +31,18 @@ export const Binder = {
             title: title || "无题",
             content: this.currentManuscript,
             date: new Date().toLocaleDateString(),
-            // ✨ 保存封面图片路径，默认给一个
-            cover: coverImg || 'assets/images/booksheet/booksheet1.png' 
+            // 优先使用传入参数，否则使用内部状态，最后兜底
+            cover: coverImg || this.currentCover || 'assets/images/booksheet/booksheet1.png' 
         };
 
         Library.addBook(newBook);
         
-        // 奖励结算
         const reward = Math.floor(this.currentManuscript.length / 2);
         UserData.addInk(reward);
 
-        // 清空工作台
+        // 重置状态
         this.currentManuscript = "";
+        this.currentCover = 'assets/images/booksheet/booksheet1.png'; // 恢复默认
 
         return { success: true, msg: `《${newBook.title}》出版成功！获得 ${reward}ml 墨水。` };
     }

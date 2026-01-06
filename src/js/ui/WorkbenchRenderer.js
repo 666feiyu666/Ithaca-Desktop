@@ -1,10 +1,10 @@
 /* src/js/ui/WorkbenchRenderer.js */
 import { Binder } from '../logic/Binder.js';
 import { Journal } from '../data/Journal.js';
-import { UserData } from '../data/UserData.js'; // 用于获取 Notebooks 列表
+import { UserData } from '../data/UserData.js';
 import { ModalManager } from './ModalManager.js';
-import { BookshelfRenderer } from './BookshelfRenderer.js'; // 出版后刷新书架
-import { HUDRenderer } from './HUDRenderer.js'; // 出版后刷新墨水状态
+import { BookshelfRenderer } from './BookshelfRenderer.js';
+import { HUDRenderer } from './HUDRenderer.js';
 import { marked } from '../libs/marked.esm.js';
 
 export const WorkbenchRenderer = {
@@ -21,18 +21,24 @@ export const WorkbenchRenderer = {
             };
         }
 
+        // ✨ 修复：绑定“取消”按钮，使其能关闭弹窗
+        const btnClose = document.getElementById('btn-close-workbench');
+        if (btnClose) {
+            btnClose.onclick = () => {
+                ModalManager.close('workbench-modal');
+            };
+        }
+
         const btnPublish = document.getElementById('btn-publish');
         if (btnPublish) {
             btnPublish.onclick = () => this.handlePublish();
         }
 
-        // 预览按钮
         const btnPreview = document.getElementById('btn-toggle-manuscript-preview');
         if (btnPreview) {
             btnPreview.onclick = () => this.togglePreview();
         }
 
-        // 筛选器
         const notebookSelect = document.getElementById('workbench-filter-notebook');
         const searchInput = document.getElementById('workbench-search');
         if (notebookSelect) {
@@ -44,27 +50,45 @@ export const WorkbenchRenderer = {
             );
         }
 
-        // 自动同步编辑器内容到 Binder
         const manuEditor = document.getElementById('manuscript-editor');
         if(manuEditor) {
             manuEditor.addEventListener('input', (e) => Binder.updateManuscript(e.target.value));
         }
+
+        // 封面选择事件
+        const covers = document.querySelectorAll('.cover-option');
+        covers.forEach(img => {
+            img.onclick = () => {
+                covers.forEach(c => c.classList.remove('selected'));
+                img.classList.add('selected');
+                const fullPath = `assets/images/booksheet/${img.dataset.cover}`;
+                Binder.setCover(fullPath);
+            };
+        });
     },
 
     render() {
         this.renderNotebookSelector();
         this.renderList();
         
-        // 清空标题输入，保留 draft
         const titleInput = document.getElementById('manuscript-title-input');
         if (titleInput) titleInput.value = "";
+        
+        const editor = document.getElementById('manuscript-editor');
+        if(editor) editor.value = Binder.currentManuscript;
+
+        // 重置封面选择
+        const covers = document.querySelectorAll('.cover-option');
+        covers.forEach(c => c.classList.remove('selected'));
+        if(covers.length > 0) covers[0].classList.add('selected');
+        Binder.setCover('assets/images/booksheet/booksheet1.png');
     },
 
     renderNotebookSelector() {
         const selectEl = document.getElementById('workbench-filter-notebook');
         if (!selectEl) return;
 
-        const currentVal = selectEl.value; // 记住之前的选择
+        const currentVal = selectEl.value;
         selectEl.innerHTML = `<option value="ALL">📂 所有记忆</option><option value="INBOX_VIRTUAL_ID">📥 收件箱</option>`;
         
         UserData.state.notebooks.forEach(nb => {
@@ -82,7 +106,6 @@ export const WorkbenchRenderer = {
         if (!listEl) return;
         listEl.innerHTML = "";
 
-        // 筛选逻辑
         const entries = Journal.getAll().filter(entry => {
             const matchText = !filterText || entry.content.toLowerCase().includes(filterText.toLowerCase());
             let matchNotebook = true;
@@ -99,7 +122,7 @@ export const WorkbenchRenderer = {
 
         entries.forEach(entry => {
             const btn = document.createElement('div');
-            btn.className = 'list-item'; // 复用样式
+            btn.className = 'list-item';
             btn.innerHTML = `
                 <div style="font-weight:bold;">➕ ${entry.date}</div>
                 <div style="font-size:12px; color:#666;">${entry.content.substring(0, 20)}...</div>
@@ -123,15 +146,14 @@ export const WorkbenchRenderer = {
         if (!title) title = "无题_" + new Date().toLocaleDateString();
 
         Binder.updateManuscript(content);
-        const result = Binder.publish(title, Binder.currentCover || 'assets/images/booksheet/booksheet1.png');
+        const result = Binder.publish(title);
 
         if (result.success) {
             alert(`🎉 出版成功！\n获得墨水：${Math.floor(content.length / 2)} ml`);
             
-            editor.value = ""; // 清空编辑器
+            editor.value = "";
             if (titleInput) titleInput.value = "";
             
-            // 刷新外部状态
             BookshelfRenderer.render();
             HUDRenderer.updateAll();
             ModalManager.close('workbench-modal');
