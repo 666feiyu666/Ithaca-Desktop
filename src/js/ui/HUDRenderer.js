@@ -36,15 +36,43 @@ export const HUDRenderer = {
         if (el) el.innerText = val;
     },
 
+    // ✨ 核心修改：日志 + 弹窗反馈
     log(msg) {
+        console.log(`[Log] ${msg}`); // 1. 控制台留档
+
+        // 2. 尝试写入日志框（如果有的话，比如在写作台侧边栏）
         const box = document.getElementById('log-box');
-        if (!box) return;
-        const div = document.createElement('div');
-        div.innerHTML = `<span style="color:#999; font-size:12px;">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
-        div.style.borderBottom = "1px dashed #eee";
-        box.prepend(div);
+        if (box) {
+            const div = document.createElement('div');
+            div.innerHTML = `<span style="color:#999; font-size:12px;">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
+            div.style.borderBottom = "1px dashed #eee";
+            box.prepend(div);
+        }
+
+        // 3. ✨ 触发屏幕下方的 Toast 弹窗（给猫咪互动用）
+        this.showToast(msg);
     },
 
+    // ✨ 新增：显示 Toast 弹窗
+    showToast(msg) {
+        const toast = document.getElementById('global-toast');
+        if (!toast) return;
+
+        // 设置内容（允许 HTML，比如加粗）
+        toast.innerHTML = msg;
+        
+        // 显示
+        toast.classList.remove('hidden');
+        
+        // 清除旧定时器（防止连续点击闪烁）
+        if (this._toastTimer) clearTimeout(this._toastTimer);
+
+        // 3秒后自动淡出
+        this._toastTimer = setTimeout(() => {
+            toast.classList.add('hidden');
+        }, 3000);
+    },
+    
     bindToolbarEvents() {
         // 1. 商店
         this._bindClick('btn-icon-shop', () => {

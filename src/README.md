@@ -2,11 +2,12 @@
 
 > "当你启程前往伊萨卡，但愿你的道路漫长，充满奇迹，充满发现。" —— 康斯坦丁·卡瓦菲斯
 
-![Version](https://img.shields.io/badge/version-0.5.0-blueviolet) ![Status](https://img.shields.io/badge/status-In%20Development-orange) ![Electron](https://img.shields.io/badge/Electron-28.0-9cf) ![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-0.9.2-blueviolet) ![Status](https://img.shields.io/badge/status-In%20Development-orange) ![Electron](https://img.shields.io/badge/Electron-28.0-9cf) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
 ## 📖 关于本项目 (About)
+![Ithaca Room](assets/images/room/room_goal.png)
 
 **《伊萨卡手记》** 是一款融合了**叙事理论（Narrative Theory）**与**游戏化机制**的桌面端日记应用。
 

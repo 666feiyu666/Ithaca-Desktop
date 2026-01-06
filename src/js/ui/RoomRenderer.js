@@ -6,6 +6,7 @@ import { CityEvent } from '../logic/CityEvent.js';
 import { ModalManager } from './ModalManager.js';
 import { SidebarRenderer } from './SidebarRenderer.js';
 import { BookshelfRenderer } from './BookshelfRenderer.js';
+import { HUDRenderer } from './HUDRenderer.js';
 
 // 物品配置数据库
 const ITEM_DB = {
@@ -16,7 +17,7 @@ const ITEM_DB = {
     'item_bed_default':       { src: 'assets/images/room/bed.png',       type: 'bed' },   
     'item_plant_01':          { src: 'assets/images/room/sofa.png',      type: 'deco' },
     'item_rug_blue':          { src: 'assets/images/room/rug2.png',      type: 'deco' },
-    'item_cat_orange':        { src: 'assets/images/room/cat.png',       type: 'deco' }
+    'item_cat_orange':        { src: 'assets/images/room/cat.png',       type: 'cat' }
 };
 
 export const RoomRenderer = {
@@ -172,6 +173,7 @@ export const RoomRenderer = {
     handleFurnitureInteraction(type) {
         switch (type) {
             case 'desk':
+            case 'chair': // 👈 1. 新增：点击椅子也打开写字台
                 ModalManager.open('modal-desk');
                 SidebarRenderer.render(); 
                 break;
@@ -189,6 +191,28 @@ export const RoomRenderer = {
                 CityEvent.renderSelectionMenu();
                 break;
 
+            case 'bed': // 👈 2. 新增：点击床铺
+                if (confirm("是否要退出伊萨卡手记？\n(退出前会自动保存进度)")) {
+                    UserData.save(); // 退出前保存
+                    // 尝试关闭窗口 (Electron 环境下通常有效)
+                    window.close(); 
+                }
+                break;
+
+            case 'cat': // 👈 3. 新增：点击猫咪
+                // 播放一个简单的文字反馈
+                HUDRenderer.log("🐈 你摸了摸你的橘猫。它舒服地呼噜了两声。");
+                
+                // 可选：稍微让猫跳一下（复用房间震动动画类，或者只让图片动）
+                const catEl = document.querySelector('.pixel-furniture[src*="cat.png"]');
+                if(catEl) {
+                    catEl.style.transform = "scaleX(var(--dir)) translateY(-10px)";
+                    setTimeout(() => {
+                        catEl.style.transform = "scaleX(var(--dir)) translateY(0)";
+                    }, 200);
+                }
+                break;
+
             default:
                 break;
         }
@@ -200,6 +224,7 @@ export const RoomRenderer = {
             case 'bookshelf': return '12%';
             case 'rug':       return '25%';
             case 'chair':     return '8%';
+            case 'cat':       return '10%';
             case 'bed':       return '32%';
             default:          return '15%';
         }
