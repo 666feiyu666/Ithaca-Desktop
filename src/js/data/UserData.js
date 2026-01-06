@@ -22,8 +22,12 @@ export const UserData = {
     // 初始化
     async init() {
         const saved = await window.ithacaSystem.loadData('user_data.json');
+    
         if (saved) {
             this.state = JSON.parse(saved);
+            console.log("存档加载成功！内容：", this.state);
+        } else {
+            console.log("未找到存档，将创建新进度");
         }
 
         // --- 1. 基础数据兼容性修补 ---

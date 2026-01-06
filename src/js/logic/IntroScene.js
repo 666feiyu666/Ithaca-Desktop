@@ -37,6 +37,21 @@ export const IntroScene = {
     const bgImg = scene.querySelector('.intro-bg');
     if (bgImg) bgImg.style.opacity = '1';
 
+    // 3. 绑定点击事件 (核心修复)
+        // 点击整个场景区域，推进下一句对话
+        scene.onclick = () => {
+            this.next();
+        };
+
+        // 绑定跳过按钮 (顺便把这个也加上，防止以后忘了)
+        const btnSkip = document.getElementById('btn-skip-intro');
+        if (btnSkip) {
+            btnSkip.onclick = (e) => {
+                e.stopPropagation(); // 防止冒泡触发 scene.onclick
+                this.endIntro();
+            };
+        }
+
     this.renderLine();
     },
 

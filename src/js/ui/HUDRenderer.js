@@ -224,7 +224,23 @@ export const HUDRenderer = {
 
     handleReset() {
         if (confirm("⚠️ 确定要重置吗？这将清空一切！")) {
-             UserData.state = { day: 1, ink: 0, draft: "", inventory: [], layout: undefined, readMails: [], notebooks:[] };
+             // 1. 重置内存中的状态
+             UserData.state = { 
+                 day: 1, 
+                 ink: 0, 
+                 draft: "", 
+                 inventory: [], 
+                 layout: undefined, // 设为 undefined 会触发 UserData.init 里的新手礼包逻辑
+                 readMails: [], 
+                 notebooks: [] 
+             };
+             
+             // =============== 🔧 修复代码开始 ===============
+             // 2. 必须保存到硬盘！
+             // 否则刷新后又会读取到旧的存档
+             UserData.save(); 
+             // =============== 🔧 修复代码结束 ===============
+
              alert("♻️ 世界已重启。");
              window.location.reload();
         }
