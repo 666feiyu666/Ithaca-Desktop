@@ -1,4 +1,4 @@
-/* src/js/logic/StoryManager.js - 完整版 */
+/* src/js/logic/StoryManager.js */
 import { UserData } from '../data/UserData.js';
 import { Library } from '../data/Library.js';
 import { UIRenderer } from '../ui/UIRenderer.js';
@@ -35,7 +35,7 @@ export const StoryManager = {
         {
             bookId: "book_pineapple_diary_complete",
             title: "糖水菠萝的日记",
-            cover: "assets/images/booksheet/booksheet0.png",
+            cover: "assets/images/booksheet/booksheet1.png",
             requiredFragments: ["frag_pineapple_01", "frag_pineapple_02", "frag_pineapple_03"],
             fullContent: `# 糖水菠萝的日记 (完整版)\n\n## 2024年1月15日\n今天下班路过楼下的便利店，那里的关东煮冒着热气...\n\n在这个城市里，只有便利店的灯光是永远为我亮着的。\n\n## 2024年2月20日\n雨下得很大，伞却忘在了地铁上。\n\n我不喜欢雨天，它让城市变得黏糊糊的，像甩不掉的焦虑。\n\n## 2024年5月1日\n房租又涨了。看着窗外的车流，我突然意识到，我可能永远无法真正融入这座城市。\n\n也许是时候去寻找属于我的伊萨卡了。\n\n—— 糖水菠萝`
         }
@@ -71,21 +71,18 @@ export const StoryManager = {
             const fragInfo = this.fragmentDB[fragmentId];
             if (!fragInfo) return;
 
-            // 视觉反馈
             const room = document.getElementById('scene-room');
             if(room) {
                 room.classList.add('shake-room');
                 setTimeout(() => room.classList.remove('shake-room'), 500);
             }
 
-            // 弹窗通知
             this.showDialogue("✨ 发现碎片", 
                 `你捡到了一张泛黄的纸片：<br><strong style="font-size:1.1em;">《${fragInfo.title}》</strong><br><br>` + 
                 `<span style="color:#666; font-size:0.9em; font-style:italic;">"${fragInfo.content.substring(0, 25)}..."</span><br><br>` +
                 `<span style="font-size:0.8em; color:#888;">(收集更多碎片或许能还原整本书)</span>`
             );
 
-            // 检查合成
             this.checkSynthesis();
         }
     },
@@ -101,13 +98,20 @@ export const StoryManager = {
             if (hasAllFragments) {
                 console.log(`[StoryManager] 碎片集齐，合成书籍: ${recipe.title}`);
                 
+                // ✅ 这里使用 Library.addBook，但要注意我们之前在 Library.js 修复了只读逻辑
+                // 如果 Library.addBook 没有处理 isReadOnly，这里传入的属性可能无效
+                // 但我们在之前的修正中，是在 checkSynthesis 这里直接构造对象的，
+                // 并且我们在 Library.js 的 init 里加了补丁。
+                // 最稳妥的方式是：Library.addBook 只是 push，所以我们要确保传入的对象带只读属性。
+                
                 Library.addBook({
                     id: recipe.bookId,
                     title: recipe.title,
                     content: recipe.fullContent,
                     cover: recipe.cover,
                     date: "重组的记忆",
-                    isMystery: true
+                    isMystery: true,     
+                    isReadOnly: true     // 🔒 确保合成书只读
                 });
 
                 setTimeout(() => {
@@ -133,7 +137,7 @@ export const StoryManager = {
     // 3. UI 与场景控制 (UI & Scene Control)
     // ============================================================
 
-    // --- D. 通用弹窗 (黑底遮罩，用于碎片获得/合成提示) ---
+    // --- D. 通用弹窗 ---
     showDialogue(title, htmlContent) {
         const scene = document.getElementById('scene-intro');
         const bgImg = scene.querySelector('.intro-bg');
@@ -142,48 +146,38 @@ export const StoryManager = {
         const textEl = document.getElementById('dialogue-text');
         const box = document.getElementById('intro-dialogue-box');
         
-        // ✨ 获取房间引用，用于判断“我在哪”
         const room = document.getElementById('scene-room'); 
         const isCityMode = (room && window.getComputedStyle(room).display === 'none');
 
         scene.style.display = 'flex';
         scene.style.opacity = 1;
-        scene.style.background = 'rgba(0, 0, 0, 0.7)'; // 通用深色遮罩
+        scene.style.background = 'rgba(0, 0, 0, 0.7)'; 
         
-        // 🔴 核心修复逻辑：
         if (bgImg) {
             if (isCityMode) {
-                // 1. 如果在街上：显示背景图 (防止黑屏)
                 bgImg.style.display = 'block'; 
             } else {
-                // 2. 如果在房间里：隐藏背景图 (让房间透过遮罩显示出来)
                 bgImg.style.display = 'none';
             }
         }
         
         if (skipBtn) skipBtn.style.display = 'none';
 
-        // 设置内容
         speakerEl.innerText = title;
         speakerEl.style.color = "#d84315"; 
         textEl.innerHTML = htmlContent;
         
         box.style.display = 'flex';
 
-        // 点击关闭逻辑
         box.onclick = () => {
-            // 再次检查状态 (防止并在弹窗期间发生了变化)
             const currentCityMode = (room && window.getComputedStyle(room).display === 'none');
 
             if (currentCityMode) {
-                // A. 如果在街上：只隐藏对话框，恢复浅色遮罩
                 box.style.display = 'none';
                 scene.style.background = 'rgba(0, 0, 0, 0.2)'; 
             } else {
-                // B. 如果在房间里：彻底关闭场景层
                 scene.style.display = 'none';
                 scene.style.background = ''; 
-                // 恢复背景图显示状态，为下次去街上做准备
                 if (bgImg) bgImg.style.display = 'block';
             }
 
@@ -192,8 +186,7 @@ export const StoryManager = {
         };
     },
 
-    // --- E. 场景对话 (用于城市探索) ---
-    // 切换背景图 + 显示对话框 + 隐藏房间
+    // --- E. 场景对话 (城市探索) ---
     showSceneDialogue(title, htmlContent, bgSrc) {
         const scene = document.getElementById('scene-intro');
         const bgImg = scene.querySelector('.intro-bg');
@@ -204,54 +197,42 @@ export const StoryManager = {
         const textEl = document.getElementById('dialogue-text');
         const box = document.getElementById('intro-dialogue-box');
 
-        // 1. 切换场景：隐藏房间，显示全屏层
         if (room) room.style.display = 'none';
         scene.style.display = 'flex';
         scene.style.opacity = 1;
         
-        // 2. 设置背景图
         if (bgImg) {
             bgImg.style.display = 'block'; 
-            bgImg.src = bgSrc; // 切换为地点的图片
+            bgImg.src = bgSrc; 
         }
         
-        // 移除深色遮罩，让背景图清晰显示
         scene.style.background = 'rgba(0, 0, 0, 0.2)'; 
 
-        // 隐藏跳过按钮
         if (skipBtn) skipBtn.style.display = 'none';
-        
-        // 确保对话框显示
         box.style.display = 'flex';
 
-        // 设置文本
         speakerEl.innerText = title;
         speakerEl.style.color = "#d84315"; 
         textEl.innerHTML = htmlContent;
 
-        // 3. 点击对话框 -> 仅关闭对话框 (保持背景，等待用户点全局Home键回家)
         box.onclick = () => {
             box.style.display = 'none';
             box.onclick = null; 
         };
     },
 
-    // --- F. 回家逻辑 (被 app.js 全局 Home 按钮调用) ---
+    // --- F. 回家逻辑 ---
     returnHome() {
         const scene = document.getElementById('scene-intro');
         const bgImg = scene.querySelector('.intro-bg');
         const room = document.getElementById('scene-room');
         const box = document.getElementById('intro-dialogue-box');
 
-        // 1. 隐藏场景，显示房间
         scene.style.display = 'none';
         if (room) room.style.display = 'block';
         
-        // 2. 重置对话框显示状态 (以防下次打开看不到)
         if (box) box.style.display = 'flex';
         
-        // 3. 背景归位：设回默认的 street0.png (公寓街道)
-        // 这样下次进开场白或者重置时，默认就是家门口
         if (bgImg) {
             bgImg.style.display = 'block';
             bgImg.src = 'assets/images/city/street0.png';
@@ -268,8 +249,9 @@ export const StoryManager = {
             { speaker: "我", text: "（指尖划过书脊的声音）" },
             { speaker: "我", text: "嗯？最上层深处好像卡着什么东西……" },
             { speaker: "我", text: "（用力拉拽的声音）" },
-            { speaker: "我", text: "掉出来一本封面已经泛黄的书籍，上面贴着一个手写的标签：'伊萨卡手记'。" },
-            { speaker: "我", text: "是前任租客遗留下来的吗？既然留在了书架上，或许是可以阅读的吧。" }
+            // ✏️ 修改文案：明确指出是《伊萨卡手记 I》
+            { speaker: "我", text: "掉出来一本封面是绿色的书，上面印着：'伊萨卡手记 I：出发'。" },
+            { speaker: "我", text: "是前任租客，还是……这个房间留给我的？既然在书架上，那就是我的了。" }
         ]
     },
 
@@ -292,10 +274,8 @@ export const StoryManager = {
         scene.style.display = 'flex';
         scene.style.opacity = 1;
         
-        // 剧情模式背景稍暗
         scene.style.background = 'rgba(0, 0, 0, 0.4)'; 
         
-        // 隐藏背景图 (剧情模式下使用纯色或半透明遮罩)
         const bgImg = scene.querySelector('.intro-bg');
         if (bgImg) bgImg.style.display = 'none';
 
@@ -329,6 +309,7 @@ export const StoryManager = {
         }
     },
 
+    // --- 🛠️ 修复后的 endStory ---
     endStory() {
         const scene = document.getElementById('scene-intro');
         scene.style.display = 'none';
@@ -339,6 +320,8 @@ export const StoryManager = {
         UserData.state.hasFoundMysteryEntry = true;
         UserData.save();
 
+        // ❌ 移除旧代码：不要再添加 'mystery_pineapple_01' 了！
+        /*
         Library.addBook({
             id: "mystery_pineapple_01",
             title: "伊萨卡手记",
@@ -346,10 +329,16 @@ export const StoryManager = {
             date: "2023/12/12",
             cover: 'assets/images/booksheet/booksheet0.png'
         });
+        */
 
+        // ✅ 新逻辑：
+        // 因为 Library.init() 已经保证了《伊萨卡手记 I》在书架上
+        // 我们只需要刷新一下 UI，并给个提示即可。
+        
         document.getElementById('modal-bookshelf-ui').style.display = 'flex';
         UIRenderer.renderBookshelf();
         
-        UIRenderer.log("📖 你在书架深处发现了一本书。");
+        // 提示文案也对应更新
+        UIRenderer.log("📖 你发现了《伊萨卡手记 I：出发》");
     }
 };

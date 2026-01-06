@@ -1,34 +1,81 @@
-# 🏛️ The Ithaca Journal (伊萨卡手记)
+# 🍍 The Ithaca Journal | 伊萨卡手记
 
-> *"When you set out for Ithaca, pray that your road is a long one, full of adventure, full of discovery."* — C.P. Cavafy
+> "当你启程前往伊萨卡，但愿你的道路漫长，充满奇迹，充满发现。" —— 康斯坦丁·卡瓦菲斯
 
-![Ithaca Room](assets/images/room/room_goal.png)
+![Version](https://img.shields.io/badge/version-0.5.0-blueviolet) ![Status](https://img.shields.io/badge/status-In%20Development-orange) ![Electron](https://img.shields.io/badge/Electron-28.0-9cf) ![License](https://img.shields.io/badge/license-MIT-green)
 
-## 📖 简介 (Introduction)
+---
 
-**伊萨卡手记 (The Ithaca Journal)** 是一款融合了**日常书写**与**空间装饰**的自我探索游戏（Gamified Journaling App）。
+## 📖 关于本项目 (About)
 
-在这个信息过载的时代，我们将“写日记”这一行为重新构建为一场 **“从城市回归房间”** 的仪式。玩家在喧嚣的数字都市中收集灵感，回到属于自己的精神角落（Ithaca），将碎片化的记忆装订成书，并用写作赚取的“墨水”来修缮和装饰这个避风港。
+**《伊萨卡手记》** 是一款融合了**叙事疗法（Narrative Therapy）**与**游戏化机制**的桌面端日记应用。
 
-这不是一个简单的记录工具，而是一个帮助你重建生活秩序的数字栖居地。
+在这个快节奏的数字时代，我们试图通过构建一个虚拟的“精神避难所”，帮助用户找回书写的力量。这不仅仅是一个文本编辑器，更是一场为期 **21天** 的寻找自我的旅程。
 
-## ✨ 核心特性 (Features)
+在这里，你既是**书写者**，也是**玩家**。
 
--   **🏠 交互式栖居空间 (Interactive Room)**
-    -   告别枯燥的列表，你的主界面是一个温馨的 2.5D 房间。
-    -   点击**书桌**开始写作，点击**书架**回顾往事，点击**门**外出漫步。
-    
--   **📝 书写与装订 (Write & Bind)**
-    -   **碎片记录**：随时记下当下的思绪。
-    -   **仪式感出版**：将一段时间的日记“装订”成一本实体书（3D 模型），陈列在你的书架上。
-    -   **修订机制**：随时可以取下旧书进行批注与修改。
+### ✨ 核心特性 (Features)
 
--   **💧 墨水经济 (Ink Economy)**
-    -   写作即建设。你的每一次记录都会转化为“墨水”。
-    -   （开发中）使用墨水购买家具、绿植、宠物，打造独一无二的房间。
+* **✍️ 沉浸式写作体验**：
+    * 无干扰的写作界面，支持 Markdown 语法。
+    * 字数积累转化为“探索能量”，解锁新的剧情碎片。
+* **🏠 你的伊萨卡（房间系统）**：
+    * 随时间变化的虚拟房间，从最初的空荡荡到充满生活气息。
+    * **书架+信箱**：收藏你的作品，以及那些神秘的“系统来信”。
+* **🏙️ 城市漫游 (City Exploration)**：
+    * 当写作遇到瓶颈时，去虚拟的城市街道散步。
+    * 在便利店、公园、地铁站收集灵感碎片（Fragments）。
+* **🧩 叙事合成 (Synthesis System)**：
+    * 收集散落在城市里的《糖水菠萝日记》残页。
+    * 在工作台将碎片重组，还原出前任房客的故事，并获得关于“自我”的哲学启示。
+* **📅 21天习惯养成**：
+    * 基于心理学的 21 天周期设计，每天解锁不同的信件与指引。
+    * 从“叙事与自我”到“叙事与社会”，逐步深化。
 
--   **🏙️ 城市漫步 (City Walk)**
-    -   （开发中）随着现实时间的推移，解锁便利店、洗衣房、地铁站等场景，收集关于生活的灵感 Prompt。
+---
 
-## 📄 License
-MIT License
+## 🛠️ 技术栈 (Tech Stack)
+
+本项目基于 **Electron** 框架构建。
+
+* **Core**: Electron (Main/Renderer Process)
+* **Frontend**: HTML5, CSS3 (Grid/Flexbox), Vanilla JavaScript (ES6+)
+* **Data Persistence**: Node.js File System (fs) & LocalStorage
+* **Markdown Engine**: `marked.js`
+
+---
+
+## 🚀 快速开始 (Getting Started)
+
+如果你想在本地运行这个房间，请按照以下步骤操作：
+
+### 1. 环境准备
+确保你的电脑上安装了 [Node.js](https://nodejs.org/) (建议 v16+)。
+
+### 2. 获取代码
+```bash
+git clone [https://github.com/your-username/ithaca-journal.git](https://github.com/your-username/ithaca-journal.git)
+cd ithaca-journal
+```
+
+### 3. 安装依赖
+```bash
+npm install
+```
+
+### 4. 启动伊萨卡
+```bash
+npm start
+```
+
+目前项目仍在开发中，主要正在完善以下模块：
+
+[ ] 故事主线与支线
+
+[ ] 城市探索
+
+[ ] 房间美术设计
+
+[ ] 导出故事为 PDF 功能
+
+如果你对叙事理论或独立游戏开发感兴趣，欢迎提交 Issue 或 PR！
